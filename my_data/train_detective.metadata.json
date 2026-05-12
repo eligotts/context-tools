@@ -1,0 +1,23 @@
+{
+  "total_examples": 500,
+  "world_distribution": {
+    "detective": 500
+  },
+  "optimal_turns_distribution": {
+    "5": 100,
+    "7": 100,
+    "9": 100,
+    "11": 100,
+    "13": 100
+  },
+  "difficulty_distribution": {
+    "1": 100,
+    "2": 100,
+    "3": 100,
+    "4": 100,
+    "5": 100
+  },
+  "query_template_distribution": {
+    "find_unique": 500
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "total_examples": 12,
+  "world_distribution": {
+    "rule_hunt": 12
+  },
+  "optimal_turns_distribution": {
+    "4": 4,
+    "5": 4,
+    "6": 4
+  },
+  "difficulty_distribution": {
+    "1": 4,
+    "2": 4,
+    "3": 4
+  },
+  "query_template_distribution": {
+    "find_rule": 12
+  }
+}

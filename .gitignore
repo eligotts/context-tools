@@ -1,0 +1,28 @@
+.DS_Store
+
+# Python/runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Local secrets/config
+.env
+.env.*
+.prime/
+
+# Generated build/runtime outputs
+dist/
+build/
+*.egg-info/
+outputs/
+logs/
+
+# Notebook/editor noise
+.ipynb_checkpoints/
+.vscode/
+.idea/

@@ -1,0 +1,31 @@
+[project]
+name = "context-tools"
+description = "Sandboxed Python-REPL harness for training models to manage their own context window across turns."
+tags = ["multi-turn", "sandbox", "rlm", "context-management", "train", "eval"]
+version = "0.3.18"
+requires-python = ">=3.10"
+dependencies = [
+    "verifiers>=0.1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+# Minimum runtime artifacts: env class, data wrapper, default train/eval sets,
+# pyproject. Synthetic-data-generation code (`generators/`, `scripts/`) and
+# all non-default data files (sweeps, per-family splits, legacy 5-family
+# train_all.jsonl, etc.) stay local — not shipped.
+include = [
+    "context_tools.py",
+    "taskset.py",
+    "pyproject.toml",
+    "my_data/train_adaptive_cursor.jsonl",
+    "my_data/eval_adaptive_cursor.jsonl",
+]
+
+[tool.verifiers.eval]
+num_examples = 30
+rollouts_per_example = 1
+max_turns = 15

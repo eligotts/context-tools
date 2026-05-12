@@ -1,0 +1,28 @@
+{
+  "total_examples": 500,
+  "world_distribution": {
+    "timeline_track": 500
+  },
+  "optimal_turns_distribution": {
+    "1": 91,
+    "2": 122,
+    "3": 85,
+    "4": 84,
+    "5": 48,
+    "6": 35,
+    "7": 14,
+    "8": 7,
+    "9": 14
+  },
+  "difficulty_distribution": {
+    "1": 100,
+    "2": 100,
+    "3": 100,
+    "4": 100,
+    "5": 100
+  },
+  "query_template_distribution": {
+    "owner_at_time": 325,
+    "count_owned_at_time": 175
+  }
+}

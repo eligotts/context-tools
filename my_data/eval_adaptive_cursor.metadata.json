@@ -1,0 +1,21 @@
+{
+  "total_examples": 60,
+  "world_distribution": {
+    "adaptive_cursor": 60
+  },
+  "optimal_turns_distribution": {
+    "4": 24,
+    "5": 18,
+    "7": 12,
+    "9": 6
+  },
+  "difficulty_distribution": {
+    "0": 24,
+    "1": 18,
+    "2": 12,
+    "3": 6
+  },
+  "query_template_distribution": {
+    "cursor_checkpoint_audit": 60
+  }
+}

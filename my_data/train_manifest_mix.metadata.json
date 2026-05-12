@@ -1,0 +1,27 @@
+{
+  "total_examples": 1320,
+  "world_distribution": {
+    "timeline_track": 700,
+    "detective": 620
+  },
+  "optimal_turns_distribution": {
+    "3": 43,
+    "4": 159,
+    "5": 187,
+    "6": 83,
+    "7": 80,
+    "8": 165,
+    "9": 363,
+    "10": 240
+  },
+  "difficulty_distribution": {
+    "1": 250,
+    "2": 500,
+    "3": 570
+  },
+  "query_template_distribution": {
+    "checkpoint_actor_audit": 340,
+    "top_k_by_region": 620,
+    "owned_transfer_top_k_at_time": 360
+  }
+}
