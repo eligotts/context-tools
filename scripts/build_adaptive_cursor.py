@@ -30,13 +30,28 @@ OUT_DIR = HERE / "my_data"
 def build(n: int, seed: int) -> list:
     rng = random.Random(seed)
     rows = []
-    # Bootstrap-heavy 15-turn curriculum. d0/d1 give frequent partial/full
-    # successes; d2/d3 keep the same context-management pressure but with a
-    # larger working set once the policy starts learning the pattern.
-    difficulties = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3]
+    # Terminal-gated curriculum mix:
+    #   d0       15%  protocol retention
+    #   d1       45%  main 2-checkpoint learning zone
+    #   d2-lite  30%  5-page bridge tasks with limited lifecycle churn
+    #   d2-hard   8%  previous d2 shape
+    #   d3        2%  hardest shape, kept rare until d2 is reliable
+    mix = [(0, 0.15), (1, 0.45), (2, 0.30), (3, 0.08), (4, 0.02)]
+    counts = {difficulty: int(n * weight) for difficulty, weight in mix}
+    remainder = n - sum(counts.values())
+    for difficulty, _ in sorted(mix, key=lambda item: item[1], reverse=True):
+        if remainder <= 0:
+            break
+        counts[difficulty] += 1
+        remainder -= 1
+    difficulties = [
+        difficulty
+        for difficulty, _ in mix
+        for _ in range(counts[difficulty])
+    ]
     used = set()
     while len(rows) < n:
-        difficulty = difficulties[len(rows) % len(difficulties)]
+        difficulty = difficulties[len(rows)]
         ex = make_example(rng.randint(0, 2**31 - 1), difficulty)
         while ex.example_id in used:
             ex = make_example(rng.randint(0, 2**31 - 1), difficulty)

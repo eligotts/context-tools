@@ -92,15 +92,26 @@ class AdaptiveCursorWorld(WorldGenerator):
         *,
         difficulty: int | None = None,
     ) -> dict:
-        difficulty = max(0, min(3, difficulty if difficulty is not None else 1))
+        difficulty = max(0, min(4, difficulty if difficulty is not None else 1))
         if difficulty == 0:
             n_pages, entries_per_page, n_objects, n_actors, n_checkpoints = 3, 1, 2, 2, 1
+            destroy_roll = 1.01
         elif difficulty == 1:
             n_pages, entries_per_page, n_objects, n_actors, n_checkpoints = 4, 1, 3, 3, 2
+            destroy_roll = 1.01
         elif difficulty == 2:
+            # d2-lite: same multi-checkpoint continuation pressure as harder
+            # tasks, but fewer ledger updates and rare lifecycle churn.
+            n_pages, entries_per_page, n_objects, n_actors, n_checkpoints = 5, 1, 3, 3, 2
+            destroy_roll = 0.97
+        elif difficulty == 3:
+            # d2-hard: previous d2 shape.
             n_pages, entries_per_page, n_objects, n_actors, n_checkpoints = 6, 2, 4, 3, 2
+            destroy_roll = 0.88
         else:
+            # d3: previous hardest shape.
             n_pages, entries_per_page, n_objects, n_actors, n_checkpoints = 8, 2, 5, 4, 3
+            destroy_roll = 0.88
 
         actors = sorted(rng.sample(ACTORS, n_actors))
         locations = sorted(rng.sample(LOCATIONS, min(len(LOCATIONS), max(4, n_actors))))
@@ -150,7 +161,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                             "to": new,
                         }
                         owners[obj] = new
-                    elif roll < 0.88:
+                    elif roll < destroy_roll:
                         e = {
                             "idx": event_index,
                             "type": "MOVE",

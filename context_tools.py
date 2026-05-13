@@ -403,16 +403,18 @@ class _AdaptiveObserve:
     graph.
     \"\"\"
 
-    __slots__ = ('__pages', '__start')
+    __slots__ = ('__pages', '__start', '__terminal_reached')
 
     def __init__(self, pages, start):
         object.__setattr__(self, '_AdaptiveObserve__pages', dict(pages))
         object.__setattr__(self, '_AdaptiveObserve__start', str(start))
+        object.__setattr__(self, '_AdaptiveObserve__terminal_reached', False)
 
     def __getattribute__(self, name):
         if name in {
             '__dict__', '__slots__', '_pages', '_start', '__pages', '__start',
             '_AdaptiveObserve__pages', '_AdaptiveObserve__start',
+            '_AdaptiveObserve__terminal_reached',
         }:
             raise AttributeError(name)
         return object.__getattribute__(self, name)
@@ -433,7 +435,10 @@ class _AdaptiveObserve:
         if key not in pages:
             raise KeyError(f\"Unknown observation handle: {key!r}\")
         page = pages[key]
-        return page.get('text', page) if isinstance(page, dict) else page
+        text = page.get('text', page) if isinstance(page, dict) else page
+        if isinstance(text, str) and 'Terminal slip: no next tab.' in text:
+            object.__setattr__(self, '_AdaptiveObserve__terminal_reached', True)
+        return text
 
 
 observe = _AdaptiveObserve(_world_state.get('pages', {}), START_HANDLE)
@@ -763,9 +768,17 @@ def _budget_wrap(fn):
                 "End this turn; you'll get a fresh budget on the next turn."
             )
         _tool_call_count += 1
-        return fn(*args, **kwargs)
+        result = fn(*args, **kwargs)
+        try:
+            wrapped._context_tools_terminal_reached = bool(
+                object.__getattribute__(fn, '_AdaptiveObserve__terminal_reached')
+            )
+        except Exception:
+            pass
+        return result
     wrapped.__name__ = getattr(fn, '__name__', 'wrapped')
     wrapped.__doc__ = getattr(fn, '__doc__', None)
+    wrapped._context_tools_terminal_reached = False
     return wrapped
 
 # --- World tool functions --------------------------------------------------
@@ -1158,6 +1171,24 @@ def _valid_checkpoint_submit(state: State) -> bool:
     return all(isinstance(row, (list, tuple)) and len(row) == 4 for row in submitted)
 
 
+def _complete_checkpoint_submit(state: State) -> bool:
+    gold = _expected_checkpoint_rows(state)
+    submitted = _submitted_checkpoint_rows(state)
+    return bool(gold) and len(submitted) == len(gold) and _valid_checkpoint_submit(state)
+
+
+def _checkpoint_ids_in_order(state: State) -> bool:
+    gold = _expected_checkpoint_rows(state)
+    submitted = _submitted_checkpoint_rows(state)
+    if not gold or len(submitted) != len(gold):
+        return False
+    return [str(row[0]) for row in submitted] == [str(row[0]) for row in gold]
+
+
+def _adaptive_terminal_reached(state: State) -> bool:
+    return bool(state.get("_adaptive_terminal_reached"))
+
+
 def _final_visible_context_text(state: State) -> str:
     """Render final context_window the same way the next cr=True prompt would.
 
@@ -1229,13 +1260,31 @@ async def valid_checkpoint_submit(state: State) -> float:
     return 1.0 if _valid_checkpoint_submit(state) else 0.0
 
 
+async def complete_checkpoint_submit(state: State) -> float:
+    """Metric: submitted answer has one valid row per expected checkpoint."""
+    return 1.0 if _complete_checkpoint_submit(state) else 0.0
+
+
+async def checkpoint_ids_in_order(state: State) -> float:
+    """Metric: submitted rows use the expected checkpoint ids in order."""
+    return 1.0 if _checkpoint_ids_in_order(state) else 0.0
+
+
+async def adaptive_terminal_reached(state: State) -> float:
+    """Metric: the correct adaptive-cursor terminal page was observed."""
+    return 1.0 if _adaptive_terminal_reached(state) else 0.0
+
+
 async def task_reward(state: State) -> float:
     """Main capped reward.
 
-    Adaptive-cursor rows get sparse exact reward plus simple partial credit for
-    legitimate intermediate work: valid submission shape, exact checkpoint rows
-    in the submitted answer, and exact checkpoint rows preserved in the final
-    visible context_window. Other worlds fall back to exact correctness.
+    Adaptive-cursor partial credit is terminal-gated: before the correct
+    terminal page is observed, only exact answers receive reward. This avoids
+    paying for the shortcut of submitting the first checkpoint row and stopping.
+    Once terminal is reached, partial credit is row-dominant and does not reward
+    context edits by themselves.
+
+    Other worlds fall back to exact correctness.
     """
     full = await correctness_reward(state)
     if full >= 1.0 or state.get("_world_type") != "adaptive_cursor":
@@ -1244,11 +1293,15 @@ async def task_reward(state: State) -> float:
     gold = _expected_checkpoint_rows(state)
     if not gold:
         return 0.0
+    if not _adaptive_terminal_reached(state):
+        return 0.0
+    if not (state.get("_final_answer") or state.get("final_answer")):
+        return 0.0
 
-    valid = 1.0 if _valid_checkpoint_submit(state) else 0.0
+    complete_valid = 1.0 if _complete_checkpoint_submit(state) else 0.0
+    ids_in_order = 1.0 if _checkpoint_ids_in_order(state) else 0.0
     submitted_rows = _row_fraction(_submitted_checkpoint_rows(state), gold)
-    context_rows = _context_checkpoint_row_fraction(state)
-    partial = 0.15 * valid + 0.60 * submitted_rows + 0.25 * context_rows
+    partial = 0.05 * complete_valid + 0.10 * ids_in_order + 0.85 * submitted_rows
     return max(0.0, min(1.0, partial))
 
 
@@ -1521,6 +1574,9 @@ def _make_default_rubric() -> vf.Rubric:
     rubric.add_reward_func(checkpoint_row_submit_fraction, weight=0.0)
     rubric.add_reward_func(checkpoint_row_context_fraction, weight=0.0)
     rubric.add_reward_func(valid_checkpoint_submit, weight=0.0)
+    rubric.add_reward_func(complete_checkpoint_submit, weight=0.0)
+    rubric.add_reward_func(checkpoint_ids_in_order, weight=0.0)
+    rubric.add_reward_func(adaptive_terminal_reached, weight=0.0)
     rubric.add_reward_func(context_efficiency_reward, weight=0.0)
     rubric.add_reward_func(manifest_compactness_reward, weight=0.0)
     # Diagnostic metrics — weight 0; surfaced in `avg_metrics`.
@@ -1766,6 +1822,7 @@ class ContextToolsEnv(RLMEnv):
         state["_last_error"] = None
         state["_context_window"] = []
         state["_final_answer"] = ""
+        state["_adaptive_terminal_reached"] = False
 
         # Tracking slots for the efficiency reward + truncation metric
         # (cr=True only — populated by ``_build_user_message`` each turn).
@@ -1877,6 +1934,14 @@ class ContextToolsEnv(RLMEnv):
                 "            result[\"context_window\"] = [repr(x) for x in list(namespace.get(\"context_window\", []))]\n"
                 "        except Exception:\n"
                 "            result[\"context_window\"] = []\n"
+                "    try:\n"
+                "        _obs = namespace.get(\"observe\")\n"
+                "        _terminal = getattr(_obs, \"_context_tools_terminal_reached\", None)\n"
+                "        if _terminal is None:\n"
+                "            _terminal = object.__getattribute__(_obs, \"_AdaptiveObserve__terminal_reached\")\n"
+                "        result[\"adaptive_terminal_reached\"] = bool(_terminal)\n"
+                "    except Exception:\n"
+                "        result[\"adaptive_terminal_reached\"] = False\n"
             )
             script = script[: line_end + 1] + snapshot + script[line_end + 1 :]
         return script
@@ -2142,6 +2207,8 @@ class ContextToolsEnv(RLMEnv):
                     state.get("_ctx_dynamic_remove_slots", 0) + removed
                 )
                 state["_context_window"] = list(cw)
+            if result.get("adaptive_terminal_reached"):
+                state["_adaptive_terminal_reached"] = True
 
             ans = result.get("answer") or {}
             if isinstance(ans, dict) and ans.get("ready"):

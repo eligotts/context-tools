@@ -40,7 +40,7 @@ All have a single submitted answer per rollout, programmatically verifiable.
 | `maze_walk` | `look`, `move` | push/pop discipline (path advance + backtrack) | navigate to goal, submit goal's secret |
 | `adaptive_cursor` | `observe` | choose what returned cursor-page content to preserve | checkpoint ledger audit rows |
 
-The default train/eval mix uses `adaptive_cursor/cursor_checkpoint_audit` across difficulties 1-3. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)` is just an ordinary Python function returning a page string; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`. The task pressure comes from keeping enough ownership/count state visible while avoiding raw-page append logs that overflow the cap.
+The default train/eval mix uses `adaptive_cursor/cursor_checkpoint_audit` across difficulties 0-4 with a `15/45/30/8/2` curriculum: d0 protocol retention, d1 as the main 2-checkpoint learning zone, d2-lite as a 5-page bridge, d2-hard as the old d2 shape, and a small d3 tail. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)` is just an ordinary Python function returning a page string; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`. The task pressure comes from keeping enough ownership/count state visible while avoiding raw-page append logs that overflow the cap.
 
 Every example is solver-verified at generation time: the optimal tool-using policy must independently derive the same answer the generator computed before the example is emitted.
 
@@ -81,11 +81,14 @@ prime eval run context-tools -m gpt-4.1-mini -n 5 -r 1
 
 | Reward | Weight | Definition |
 |---|---|---|
-| `task_reward` | 1.0 | Capped at 1.0. Exact submitted answer gets 1.0. For adaptive-cursor misses, partial credit is `0.15 * valid_submit + 0.60 * submitted_checkpoint_row_fraction + 0.25 * final_visible_context_row_fraction`. |
+| `task_reward` | 1.0 | Capped at 1.0. Exact submitted answer gets 1.0. For adaptive-cursor misses, partial credit is terminal-gated: before the correct terminal page is observed, reward is 0. After terminal, partial credit is `0.05 * complete_valid_submit + 0.10 * checkpoint_ids_in_order + 0.85 * submitted_checkpoint_row_fraction`. |
 | `correctness_reward` | 0.0 | Exact-answer metric only. |
 | `checkpoint_row_submit_fraction` | 0.0 | Metric: exact gold checkpoint rows present in the submitted answer. |
 | `checkpoint_row_context_fraction` | 0.0 | Metric: exact gold checkpoint rows visible in the final hard-truncated `context_window`. |
 | `valid_checkpoint_submit` | 0.0 | Metric: submitted answer is a non-empty list of 4-field rows. |
+| `complete_checkpoint_submit` | 0.0 | Metric: submitted answer has one valid row per expected checkpoint. |
+| `checkpoint_ids_in_order` | 0.0 | Metric: submitted rows use the expected checkpoint ids in order. |
+| `adaptive_terminal_reached` | 0.0 | Metric: the correct adaptive-cursor terminal page was observed. |
 
 Additional diagnostic metrics include append/edit counts, dynamic overwrite/remove counts, final manifest character count, truncation count, and turn efficiency.
 
@@ -94,4 +97,4 @@ Additional diagnostic metrics include append/edit counts, dynamic overwrite/remo
 - **100% synthetic, 100% verifiable**: ground truth is a deterministic function of the generated state.
 - **100% solvable from observations**: generated ground truth is recomputed independently before each example is emitted.
 - **Single answer per task**: every example terminates with one `submit_answer(...)` call.
-- **Difficulty stratified**: default training set is stratified across difficulties 0-3 for the adaptive-cursor template, with a bootstrap-heavy mix.
+- **Difficulty stratified**: default training set is stratified across difficulties 0-4 for the adaptive-cursor template, with the d1/d2-lite bridge emphasized.
