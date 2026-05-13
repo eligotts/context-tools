@@ -645,6 +645,12 @@ _SUBMIT_ANSWER_SIGNATURE = (
     "submit your final answer and terminate the rollout."
 )
 
+_ADAPTIVE_CURSOR_TASK_CARD = (
+    "TASK: observe START_HANDLE; follow tabs to terminal. At each CP save "
+    "[CP,actor,recv_count,owned_count]. Count transfer receivers; create/open "
+    "no receipt; closed/dead not live. Submit all rows after terminal."
+)
+
 
 # =============================================================================
 # Boot block — exec'd into the worker namespace before the FIFO loop starts
@@ -729,6 +735,7 @@ def _context_tools_json_safe(value, _depth=0, _seen=None):
 # candidates so we're robust to the worker's startup-cwd changing later.
 _world_state = {{}}
 _initial_user_text = ''
+_initial_context_window = []
 _ctx_candidates = [
     'context.json',
     _os.path.join(_os.getcwd(), 'context.json'),
@@ -741,6 +748,7 @@ for _ctx_path_str in _ctx_candidates:
             _ctx = _json.load(_f)
         _world_state = _ctx.get('world_state', {{}})
         _initial_user_text = _ctx.get('initial_user_text', '')
+        _initial_context_window = _ctx.get('initial_context_window', [])
         break
 
 # --- Per-turn tool budget --------------------------------------------------
@@ -827,11 +835,14 @@ def submit_answer(value):
 """
 
 # Boot-block fragment that seeds ``context_window``. Used only when
-# ``context_rewrite=True``. The task text is rendered separately by the env;
-# the model-owned scratchpad starts empty so every slot is governed by the same
-# hard truncation behavior. In ``context_rewrite=False`` mode this slot is
-# replaced with a comment so ``context_window`` never enters the namespace.
-_CONTEXT_WINDOW_SEED_BLOCK_REWRITE = "context_window = []"
+# ``context_rewrite=True``. Adaptive-cursor rollouts start with a compact task
+# card in slot 0; other worlds currently start empty. In
+# ``context_rewrite=False`` mode this slot is replaced with a comment so
+# ``context_window`` never enters the namespace.
+_CONTEXT_WINDOW_SEED_BLOCK_REWRITE = (
+    "context_window = list(_initial_context_window) "
+    "if isinstance(_initial_context_window, list) else []"
+)
 _CONTEXT_WINDOW_SEED_BLOCK_STANDARD = (
     "# context_rewrite=False: context_window is intentionally NOT seeded."
 )
@@ -1778,6 +1789,13 @@ class ContextToolsEnv(RLMEnv):
             for m in state.get("prompt", []) or []:
                 if _msg_field(m, "role") == "user":
                     initial_user_text = _msg_field(m, "content", "") or ""
+        task_in_context_window = (
+            bool(self.context_rewrite)
+            and info.get("world_type") == "adaptive_cursor"
+        )
+        initial_context_window = (
+            [_ADAPTIVE_CURSOR_TASK_CARD] if task_in_context_window else []
+        )
 
         # rule_hunt: stash the held-out test set + ground-truth rule on
         # `state` for the rubric to evaluate against. These keys are not
@@ -1805,6 +1823,7 @@ class ContextToolsEnv(RLMEnv):
             "world_state": world_state,
             "world_type": info.get("world_type", ""),
             "initial_user_text": initial_user_text,
+            "initial_context_window": initial_context_window,
         }
         state["info"] = info
 
@@ -1815,12 +1834,13 @@ class ContextToolsEnv(RLMEnv):
         state["optimal_turns"] = info.get("optimal_turns", 1)
         state["example_id"] = info.get("example_id", 0)
         state["_initial_user_text"] = initial_user_text
+        state["_task_in_context_window"] = task_in_context_window
 
         # Per-turn slots populated by env_response (rewrite=True only;
         # harmless if also present in rewrite=False).
         state["_last_code"] = ""
         state["_last_error"] = None
-        state["_context_window"] = []
+        state["_context_window"] = list(initial_context_window)
         state["_final_answer"] = ""
         state["_adaptive_terminal_reached"] = False
 
@@ -2033,6 +2053,7 @@ class ContextToolsEnv(RLMEnv):
         ctx = state.get("_context_window") or []
         task_text = state.get("_initial_user_text") or ""
         task_block = task_text if isinstance(task_text, str) else repr(task_text)
+        task_in_context_window = bool(state.get("_task_in_context_window"))
 
         # Render the model-owned scratchpad under one hard cap. There is no
         # protected index, truncation marker, or omitted-count hint; whatever is
@@ -2113,9 +2134,13 @@ class ContextToolsEnv(RLMEnv):
                     f"```\n{_truncate(last_error.rstrip())}\n```"
                 )
 
+        task_section = (
+            ""
+            if task_in_context_window
+            else f"=== task ===\n{task_block}\n\n"
+        )
         return (
-            "=== task ===\n"
-            f"{task_block}\n\n"
+            f"{task_section}"
             "=== context_window ===\n"
             f"{ctx_block}"
             f"{code_section}\n\n"
