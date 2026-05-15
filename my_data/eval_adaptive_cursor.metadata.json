@@ -1,23 +1,23 @@
 {
-  "total_examples": 60,
+  "total_examples": 200,
   "world_distribution": {
-    "adaptive_cursor": 60
+    "adaptive_cursor": 200
   },
   "optimal_turns_distribution": {
-    "4": 9,
-    "5": 28,
-    "6": 18,
-    "7": 4,
-    "9": 1
+    "4": 6,
+    "5": 20,
+    "6": 54,
+    "7": 100,
+    "9": 20
   },
   "difficulty_distribution": {
-    "0": 9,
-    "1": 28,
-    "2": 18,
-    "3": 4,
-    "4": 1
+    "0": 6,
+    "1": 20,
+    "2": 54,
+    "3": 100,
+    "4": 20
   },
   "query_template_distribution": {
-    "cursor_checkpoint_audit": 60
+    "cursor_checkpoint_audit": 200
   }
 }

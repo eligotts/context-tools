@@ -40,7 +40,7 @@ All have a single submitted answer per rollout, programmatically verifiable.
 | `maze_walk` | `look`, `move` | push/pop discipline (path advance + backtrack) | navigate to goal, submit goal's secret |
 | `adaptive_cursor` | `observe` | choose what returned cursor-page content to preserve | checkpoint ledger audit rows |
 
-The default train/eval mix uses `adaptive_cursor/cursor_checkpoint_audit` across difficulties 0-4 with a `15/45/30/8/2` curriculum: d0 protocol retention, d1 as the main 2-checkpoint learning zone, d2-lite as a 5-page bridge, d2-hard as the old d2 shape, and a small d3 tail. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)` is just an ordinary Python function returning a page string; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`. The task pressure comes from keeping enough ownership/count state visible while avoiding raw-page append logs that overflow the cap.
+The default train/eval mix uses `adaptive_cursor/cursor_checkpoint_audit` across difficulties 0-4 with a `3/10/27/50/10` frontier curriculum: small d0/d1 anchors, d2 bridge tasks, d3 as the main pressure point, and a capped d4 tail. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)` is just an ordinary Python function returning a page string; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`. The task pressure comes from keeping enough ownership/count state visible while avoiding raw-page append logs that overflow the cap.
 
 Every example is solver-verified at generation time: the optimal tool-using policy must independently derive the same answer the generator computed before the example is emitted.
 
@@ -62,8 +62,8 @@ prime eval run context-tools -m gpt-4.1-mini -n 5 -r 1
 
 | Arg | Type | Default | Description |
 |-----|------|---------|-------------|
-| `dataset_path` | str | `my_data/train_adaptive_cursor.jsonl` | Training JSONL (600 adaptive-cursor rows) |
-| `eval_path` | str | `my_data/eval_adaptive_cursor.jsonl` | Held-out eval JSONL (60 rows) |
+| `dataset_path` | str | `my_data/train_adaptive_cursor.jsonl` | Training JSONL (2,000 adaptive-cursor rows) |
+| `eval_path` | str | `my_data/eval_adaptive_cursor.jsonl` | Held-out eval JSONL (200 rows) |
 | `context_rewrite` | bool | `True` | True: model curates `context_window`. False: standard tool-calling flow. |
 | `max_turns` | int | 15 | Max rollout turns |
 | `max_context_chars` | int | 400 | Display cap on rendered model-curated `context_window` slots (cr=True) / per-tool-response cap (cr=False) |

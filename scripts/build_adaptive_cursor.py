@@ -25,18 +25,19 @@ from generators.dataset import export_for_verifiers, save_metadata  # noqa: E402
 
 HERE = Path(__file__).resolve().parent.parent
 OUT_DIR = HERE / "my_data"
+TRAIN_SIZE = 2000
+EVAL_SIZE = 200
+
+# Frontier curriculum for continuing from a model that has mostly learned d0-d2.
+# d3 is the main pressure point; d4 stays present but capped because full d4
+# remains much noisier and less reliably instructional.
+DIFFICULTY_MIX = [(0, 0.03), (1, 0.10), (2, 0.27), (3, 0.50), (4, 0.10)]
 
 
 def build(n: int, seed: int) -> list:
     rng = random.Random(seed)
     rows = []
-    # Terminal-gated curriculum mix:
-    #   d0       15%  protocol retention
-    #   d1       45%  main 2-checkpoint learning zone
-    #   d2-lite  30%  5-page bridge tasks with limited lifecycle churn
-    #   d2-hard   8%  previous d2 shape
-    #   d3        2%  hardest shape, kept rare until d2 is reliable
-    mix = [(0, 0.15), (1, 0.45), (2, 0.30), (3, 0.08), (4, 0.02)]
+    mix = DIFFICULTY_MIX
     counts = {difficulty: int(n * weight) for difficulty, weight in mix}
     remainder = n - sum(counts.values())
     for difficulty, _ in sorted(mix, key=lambda item: item[1], reverse=True):
@@ -73,8 +74,8 @@ def write(rows: list, path: Path) -> None:
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    train = build(600, 20260509)
-    eval_rows = build(60, 20260510)
+    train = build(TRAIN_SIZE, 20260509)
+    eval_rows = build(EVAL_SIZE, 20260510)
     train_path = OUT_DIR / "train_adaptive_cursor.jsonl"
     eval_path = OUT_DIR / "eval_adaptive_cursor.jsonl"
     write(train, train_path)
