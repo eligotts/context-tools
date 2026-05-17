@@ -1,0 +1,26 @@
+{
+  "total_examples": 120,
+  "world_distribution": {
+    "corpus_trail": 120
+  },
+  "optimal_turns_distribution": {
+    "8": 3,
+    "9": 29,
+    "10": 67,
+    "11": 18,
+    "12": 3
+  },
+  "difficulty_distribution": {
+    "0": 3,
+    "1": 29,
+    "2": 67,
+    "3": 18,
+    "4": 3
+  },
+  "query_template_distribution": {
+    "compact_risk_brief": 29,
+    "handoff_risk_brief": 67,
+    "project_risk_brief": 21,
+    "evidence_trail": 3
+  }
+}

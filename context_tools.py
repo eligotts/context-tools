@@ -238,6 +238,7 @@ _TOOL_NAMES_PER_WORLD: dict[str, list[str]] = {
     "timeline_track": ["read_event", "read_events"],
     "detective": ["get_entity", "query_attribute"],
     "maze_walk": ["look", "move"],
+    "corpus_trail": ["search_docs", "read_doc"],
     # adaptive_cursor intentionally leaves observe unwrapped. There is no small
     # manufactured per-turn tool budget for this family, and wrapping would put
     # the observe object in an easy-to-inspect Python closure.
@@ -392,6 +393,100 @@ def move(target):
 START = _world_state.get('start')
 N_NODES = len(_world_state.get('graph', {}))
 """,
+    "corpus_trail": """
+_CORPUS_TRAIL_DOCS = dict(_world_state.get('docs', {}))
+BRIEFING_DOC = _world_state.get('briefing_doc', '')
+DOC_IDS = list(_world_state.get('doc_ids', sorted(_CORPUS_TRAIL_DOCS.keys())))
+DOC_COUNT = len(DOC_IDS)
+try:
+    _CORPUS_TRAIL_SNIPPET_CHARS = int(_world_state.get('search_snippet_chars', 180) or 180)
+except Exception:
+    _CORPUS_TRAIL_SNIPPET_CHARS = 180
+_CORPUS_TRAIL_SNIPPET_CHARS = max(60, min(220, _CORPUS_TRAIL_SNIPPET_CHARS))
+
+def _corpus_trail_tokens(text):
+    import re as _re
+    return [
+        t for t in _re.findall(r"[a-z0-9]+", str(text).lower())
+        if len(t) >= 2 and t not in {"the", "and", "for", "with", "from"}
+    ]
+
+def _corpus_trail_render(doc):
+    keywords = ", ".join(doc.get('keywords', []))
+    return (
+        f"Document {doc.get('id', '')}\\n"
+        f"Title: {doc.get('title', '')}\\n"
+        f"Date: {doc.get('date', '')}\\n"
+        f"Keywords: {keywords}\\n\\n"
+        f"{doc.get('body', '')}"
+    )
+
+def _corpus_trail_snippet(doc, tokens):
+    body = str(doc.get('body', ''))
+    if body.startswith('Evidence order:'):
+        return body[:_CORPUS_TRAIL_SNIPPET_CHARS].replace("\\n", " ")
+    text = (
+        f"Document {doc.get('id', '')}\\n"
+        f"Title: {doc.get('title', '')}\\n"
+        f"Date: {doc.get('date', '')}\\n\\n"
+        f"{body}"
+    )
+    lower = text.lower()
+    positions = [lower.find(t) for t in tokens if lower.find(t) >= 0]
+    if positions:
+        start = max(0, min(positions) - 70)
+    else:
+        start = 0
+    snippet = text[start:start + _CORPUS_TRAIL_SNIPPET_CHARS].replace("\\n", " ")
+    return snippet
+
+def search_docs(query, limit=6):
+    \"\"\"Search corpus documents. Returns up to `limit` dicts with id, title,
+    date, and a short snippet. Snippets are not source-of-record; call
+    read_doc(doc_id) for documents you rely on.\"\"\"
+    tokens = _corpus_trail_tokens(query)
+    if not tokens:
+        return []
+    try:
+        limit = int(limit)
+    except Exception:
+        limit = 6
+    limit = max(1, min(10, limit))
+    hits = []
+    for doc_id, doc in _CORPUS_TRAIL_DOCS.items():
+        title = str(doc.get('title', '')).lower()
+        body = str(doc.get('body', '')).lower()
+        keywords = " ".join(str(k).lower() for k in doc.get('keywords', []))
+        score = 0
+        for tok in tokens:
+            if tok in doc_id.lower():
+                score += 8
+            if tok in title:
+                score += 6
+            if tok in keywords:
+                score += 5
+            score += min(4, body.count(tok))
+        if score:
+            hits.append((score, str(doc.get('date', '')), doc_id, doc))
+    hits.sort(key=lambda item: (-item[0], item[1], item[2]))
+    return [
+        {
+            'id': doc_id,
+            'doc_id': doc_id,
+            'title': doc.get('title', ''),
+            'date': doc.get('date', ''),
+            'snippet': _corpus_trail_snippet(doc, tokens),
+        }
+        for _, _, doc_id, doc in hits[:limit]
+    ]
+
+def read_doc(doc_id):
+    \"\"\"Return the full text of one corpus document by id.\"\"\"
+    key = str(doc_id)
+    if key not in _CORPUS_TRAIL_DOCS:
+        raise KeyError(f"Unknown document id: {key!r}")
+    return _corpus_trail_render(_CORPUS_TRAIL_DOCS[key])
+""",
     "adaptive_cursor": """
 START_HANDLE = _world_state.get('start_handle', 'START')
 
@@ -483,6 +578,10 @@ _TOOL_SIGNATURES: dict[str, list[str]] = {
     "maze_walk": [
         "- look() -> dict — inspect the current node without moving (returns {at, secret, neighbors, is_goal}).",
         "- move(target: str) -> dict — move to a neighbor of the current node; raises ValueError if `target` isn't adjacent. Returns the same shape as look() for the new position.",
+    ],
+    "corpus_trail": [
+        "- search_docs(query: str, limit: int = 6) -> list[dict] — search noisy corpus documents and return matching ids, titles, dates, and short snippets.",
+        "- read_doc(doc_id: str) -> str — return the full text of one corpus document.",
     ],
     "adaptive_cursor": [
         "- observe(handle: str) -> str — return the cursor page for an opaque handle. It does not mutate context_window; save whatever you need to context_window yourself.",
@@ -597,6 +696,24 @@ Pre-seeded kernel variables (free; do NOT cost a tool call):
   N_NODES    — total number of nodes in the graph
 
 Submit the goal node's secret via ``submit_answer("<secret>")``.
+""",
+    "corpus_trail": """\
+
+# Corpus trail format (corpus_trail only)
+
+You are doing a small research synthesis over a noisy document corpus.
+``BRIEFING_DOC`` is a long pre-seeded intake note. It is useful for starting
+clues, but it is not a citable final evidence source. Search results are only
+snippets; use ``read_doc(doc_id)`` for any source you rely on.
+
+Pre-seeded kernel variables (free; do NOT cost a tool call):
+  BRIEFING_DOC — long intake note with initial aliases and routing hints
+  DOC_IDS      — list of document ids
+  DOC_COUNT    — number of documents
+
+Submit the JSON value requested by the task via ``submit_answer(value)``.
+Some corpus_trail tasks ask for an ordered list; others ask for a JSON object
+with named keys. Do not cite ``BRIEFING_DOC`` as evidence.
 """,
     "adaptive_cursor": """\
 
@@ -1026,12 +1143,25 @@ async def correctness_reward(state: State) -> float:
     if world_type == "rule_hunt":
         return _rule_hunt_correctness(state)
 
-    submitted = state.get("_final_answer") or state.get("final_answer") or ""
+    submitted = _submitted_answer_text(state)
     expected = state.get("expected_answer") or ""
     answer_type = state.get("answer_type", "str")
     if not submitted:
         return 0.0
     return 1.0 if check_answer(submitted, expected, answer_type) else 0.0
+
+
+def _submitted_answer_text(state: State) -> str:
+    """Return the submitted answer text across RLMEnv state variants."""
+    for key in ("_final_answer", "final_answer"):
+        value = state.get(key)
+        if value not in (None, ""):
+            return str(value)
+    value = state.get("answer")
+    if isinstance(value, dict) and value.get("ready"):
+        content = value.get("content", "")
+        return "" if content is None else str(content)
+    return ""
 
 
 def _rule_hunt_correctness(state: State) -> float:
@@ -1046,9 +1176,7 @@ def _rule_hunt_correctness(state: State) -> float:
     import ast
     import json as _json
 
-    submitted = (
-        state.get("_final_answer") or state.get("final_answer") or ""
-    )
+    submitted = _submitted_answer_text(state)
     if not submitted:
         return 0.0
     rule: Any = None
@@ -1092,7 +1220,7 @@ def _is_correct(state: State) -> bool:
     world_type = state.get("_world_type", "")
     if world_type == "rule_hunt":
         return _rule_hunt_correctness(state) >= 1.0
-    submitted = state.get("_final_answer") or state.get("final_answer") or ""
+    submitted = _submitted_answer_text(state)
     if not submitted:
         return False
     expected = state.get("expected_answer") or ""
@@ -1126,9 +1254,7 @@ def _expected_checkpoint_rows(state: State) -> list[list[Any]]:
 
 
 def _submitted_checkpoint_rows(state: State) -> list[list[Any]]:
-    submitted = _parse_jsonish(
-        state.get("_final_answer") or state.get("final_answer") or ""
-    )
+    submitted = _parse_jsonish(_submitted_answer_text(state))
     if not isinstance(submitted, list):
         return []
     rows: list[list[Any]] = []
@@ -1163,9 +1289,7 @@ def _row_fraction(rows: list[list[Any]], gold: list[list[Any]]) -> float:
 
 
 def _valid_checkpoint_submit(state: State) -> bool:
-    submitted = _parse_jsonish(
-        state.get("_final_answer") or state.get("final_answer") or ""
-    )
+    submitted = _parse_jsonish(_submitted_answer_text(state))
     if not isinstance(submitted, list) or not submitted:
         return False
     return all(isinstance(row, (list, tuple)) and len(row) == 4 for row in submitted)
@@ -1295,7 +1419,7 @@ async def task_reward(state: State) -> float:
         return 0.0
     if not _adaptive_terminal_reached(state):
         return 0.0
-    if not (state.get("_final_answer") or state.get("final_answer")):
+    if not _submitted_answer_text(state):
         return 0.0
 
     complete_valid = 1.0 if _complete_checkpoint_submit(state) else 0.0
@@ -1761,6 +1885,11 @@ class ContextToolsEnv(RLMEnv):
                 world_state = json.loads(world_state)
             except Exception:
                 world_state = {}
+        per_example_context_cap = None
+        if isinstance(world_state, dict):
+            per_example_context_cap = world_state.get("max_context_chars")
+        if per_example_context_cap is None:
+            per_example_context_cap = info.get("max_context_chars")
 
         # Static task text shown each turn. It is not a context_window slot,
         # so the model cannot turn it into an unlimited scratchpad by
@@ -1826,7 +1955,12 @@ class ContextToolsEnv(RLMEnv):
 
         # Tracking slots for the efficiency reward + truncation metric
         # (cr=True only — populated by ``_build_user_message`` each turn).
-        state["_max_context_chars_cap"] = self.max_context_chars
+        try:
+            state["_max_context_chars_cap"] = int(per_example_context_cap)
+        except Exception:
+            state["_max_context_chars_cap"] = self.max_context_chars
+        if state["_max_context_chars_cap"] <= 0:
+            state["_max_context_chars_cap"] = self.max_context_chars
         state["_max_turns_cap"] = self.max_turns
         state["_ctx_chars_total"] = 0       # running sum of rendered chars
         state["_ctx_render_turns"] = 0      # number of times we rendered
@@ -2033,6 +2167,9 @@ class ContextToolsEnv(RLMEnv):
         ctx = state.get("_context_window") or []
         task_text = state.get("_initial_user_text") or ""
         task_block = task_text if isinstance(task_text, str) else repr(task_text)
+        context_cap = int(
+            state.get("_max_context_chars_cap") or self.max_context_chars
+        )
 
         # Render the model-owned scratchpad under one hard cap. There is no
         # protected index, truncation marker, or omitted-count hint; whatever is
@@ -2043,7 +2180,7 @@ class ContextToolsEnv(RLMEnv):
                 entry = item if isinstance(item, str) else repr(item)
                 managed_lines.append(f"[{i}] {entry}")
             managed_raw = "\n".join(managed_lines)
-            visible_managed = managed_raw[: self.max_context_chars]
+            visible_managed = managed_raw[:context_cap]
             truncated = len(visible_managed) < len(managed_raw)
             used = len(visible_managed)
             ctx_block = visible_managed

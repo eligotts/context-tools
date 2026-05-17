@@ -1,10 +1,4 @@
-"""context-tools training data generator.
-
-Synthetic data generators for the 5 context-management task families:
-``rule_hunt``, ``corpus_dive``, ``timeline_track``, ``detective``,
-``maze_walk``. Each family targets a distinct scratchpad-management
-mechanic (edit / prune / overwrite / shrink-set / push-pop).
-"""
+"""context-tools training data generators."""
 
 from .base import (
     ParameterRef,
@@ -27,6 +21,7 @@ from .dataset import (
     DETECTIVE_WORLD_WEIGHTS,
     MAZE_WALK_WORLD_WEIGHTS,
     ADAPTIVE_CURSOR_WORLD_WEIGHTS,
+    CORPUS_TRAIL_WORLD_WEIGHTS,
     CONTEXT_MGMT_WORLD_WEIGHTS,
 )
 from .rule_hunt import RuleHuntWorld
@@ -35,6 +30,7 @@ from .timeline_track import TimelineTrackWorld
 from .detective import DetectiveWorld
 from .maze_walk import MazeWalkWorld
 from .adaptive_cursor import AdaptiveCursorWorld
+from .corpus_trail import CorpusTrailWorld
 
 __all__ = [
     # Schema
@@ -57,6 +53,7 @@ __all__ = [
     "DETECTIVE_WORLD_WEIGHTS",
     "MAZE_WALK_WORLD_WEIGHTS",
     "ADAPTIVE_CURSOR_WORLD_WEIGHTS",
+    "CORPUS_TRAIL_WORLD_WEIGHTS",
     "CONTEXT_MGMT_WORLD_WEIGHTS",
     # World generators
     "RuleHuntWorld",
@@ -65,4 +62,5 @@ __all__ = [
     "DetectiveWorld",
     "MazeWalkWorld",
     "AdaptiveCursorWorld",
+    "CorpusTrailWorld",
 ]

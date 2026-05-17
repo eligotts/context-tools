@@ -1,0 +1,4 @@
+interface:
+  display_name: "Context Tools Calibration"
+  short_description: "Calibrate context-tools domains with Prime evals."
+  default_prompt: "Use the context-tools calibration protocol to assess or tune a domain."

@@ -1,6 +1,4 @@
-"""Dataset generation and export utilities for the 5 context-management
-families: ``rule_hunt``, ``corpus_dive``, ``timeline_track``, ``detective``,
-``maze_walk``.
+"""Dataset generation and export utilities for context-management families.
 """
 
 import json
@@ -19,6 +17,7 @@ from .timeline_track import TimelineTrackWorld
 from .detective import DetectiveWorld
 from .maze_walk import MazeWalkWorld
 from .adaptive_cursor import AdaptiveCursorWorld
+from .corpus_trail import CorpusTrailWorld
 from .solver import ReferenceSolver, SolverError
 
 
@@ -30,6 +29,7 @@ TIMELINE_TRACK_WORLD_WEIGHTS = {"timeline_track": 1.0}
 DETECTIVE_WORLD_WEIGHTS = {"detective": 1.0}
 MAZE_WALK_WORLD_WEIGHTS = {"maze_walk": 1.0}
 ADAPTIVE_CURSOR_WORLD_WEIGHTS = {"adaptive_cursor": 1.0}
+CORPUS_TRAIL_WORLD_WEIGHTS = {"corpus_trail": 1.0}
 
 # Equal-weight mix of all 5 families.
 CONTEXT_MGMT_WORLD_WEIGHTS = {
@@ -65,6 +65,8 @@ def _create_world_generator(world_type: str) -> WorldGenerator:
         return MazeWalkWorld()
     if world_type == "adaptive_cursor":
         return AdaptiveCursorWorld()
+    if world_type == "corpus_trail":
+        return CorpusTrailWorld()
     raise ValueError(f"Unknown world type: {world_type}")
 
 
