@@ -422,23 +422,51 @@ def _corpus_trail_render(doc):
     )
 
 def _corpus_trail_snippet(doc, tokens):
+    doc_id = str(doc.get('id', ''))
+    title = str(doc.get('title', ''))
     body = str(doc.get('body', ''))
-    if body.startswith('Evidence order:'):
-        return body[:_CORPUS_TRAIL_SNIPPET_CHARS].replace("\\n", " ")
-    text = (
-        f"Document {doc.get('id', '')}\\n"
-        f"Title: {doc.get('title', '')}\\n"
-        f"Date: {doc.get('date', '')}\\n\\n"
-        f"{body}"
+    keywords = " ".join(str(k) for k in doc.get('keywords', []))
+    haystacks = (
+        ('id', doc_id.lower()),
+        ('title', title.lower()),
+        ('metadata', keywords.lower()),
+        ('body', body.lower()),
     )
-    lower = text.lower()
-    positions = [lower.find(t) for t in tokens if lower.find(t) >= 0]
-    if positions:
-        start = max(0, min(positions) - 70)
+    matched_in = []
+    for label, text in haystacks:
+        if any(tok in text for tok in tokens):
+            matched_in.append(label)
+    title_lower = title.lower()
+    doc_lower = doc_id.lower()
+    if doc_lower.startswith('risk_'):
+        kind = 'risk memo'
+    elif doc_lower.startswith('memo_'):
+        kind = 'alias registry'
+    elif doc_lower.startswith('handoff_'):
+        kind = 'handoff note'
+    elif doc_lower.startswith('ticket_'):
+        kind = 'ticket note'
+    elif doc_lower.startswith('policy_'):
+        kind = 'policy note'
+    elif 'alias' in title_lower:
+        kind = 'alias registry'
+    elif 'handoff' in title_lower:
+        kind = 'handoff note'
+    elif 'policy' in title_lower:
+        kind = 'policy note'
+    elif 'risk' in title_lower:
+        kind = 'risk memo'
+    elif 'ticket' in title_lower:
+        kind = 'ticket note'
+    elif doc_lower.startswith('email_'):
+        kind = 'historical email'
     else:
-        start = 0
-    snippet = text[start:start + _CORPUS_TRAIL_SNIPPET_CHARS].replace("\\n", " ")
-    return snippet
+        kind = 'corpus document'
+    where = ', '.join(dict.fromkeys(matched_in)) if matched_in else 'corpus'
+    return (
+        f"Matched query terms in {where}; source kind: {kind}. "
+        f"Open with read_doc('{doc_id}') for source text."
+    )
 
 def search_docs(query, limit=6):
     \"\"\"Search corpus documents. Returns up to `limit` dicts with id, title,

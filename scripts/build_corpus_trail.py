@@ -29,10 +29,10 @@ OUT_DIR = HERE / "my_data"
 TRAIN_SIZE = 1000
 EVAL_SIZE = 120
 
-# Frontier mix with a modest on-ramp for cr=true. d0/d1 teach the same
-# five-source evidence-trail shape with shorter reachability; d2+ keep the
-# delayed owner/policy synthesis pressure.
-DIFFICULTY_MIX = [(0, 0.03), (1, 0.24), (2, 0.55), (3, 0.15), (4, 0.03)]
+# Frontier mix with a small on-ramp for cr=true. d0/d1 keep the same
+# five-source evidence-trail shape with shorter reachability, but most mass
+# stays on d2+ where delayed owner/policy synthesis creates memory pressure.
+DIFFICULTY_MIX = [(0, 0.01), (1, 0.12), (2, 0.57), (3, 0.24), (4, 0.06)]
 
 
 def _counts(n: int) -> dict[int, int]:
@@ -117,10 +117,23 @@ def validate(rows: list) -> None:
         evidence = full_answer["evidence"]
         policy_text = _render_doc(docs[evidence[3]])
         ticket_text = _render_doc(docs[evidence[2]])
+        risk_text = _render_doc(docs[evidence[4]])
         policy_match = re.search(r"POL-\d+", policy_text)
         ticket_match = re.search(r"TCK-\d+", ticket_text)
         if not policy_match or not ticket_match:
             failures.append((ex.example_id, "missing policy/ticket id"))
+            continue
+        answer_leak_markers = (
+            "Evidence order",
+            "Evidence cross-reference",
+            "Identity evidence",
+            "Owner/deadline evidence",
+            "Blocker evidence",
+            "Policy evidence",
+            "Final memo evidence",
+        )
+        if any(marker in risk_text for marker in answer_leak_markers):
+            failures.append((ex.example_id, "risk memo leaks evidence chain"))
             continue
         checks = [
             (evidence[0], full_answer["project"]),

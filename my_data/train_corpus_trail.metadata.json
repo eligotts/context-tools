@@ -4,23 +4,23 @@
     "corpus_trail": 1000
   },
   "optimal_turns_distribution": {
-    "8": 30,
-    "9": 240,
-    "10": 550,
-    "11": 150,
-    "12": 30
+    "8": 10,
+    "9": 120,
+    "10": 570,
+    "11": 240,
+    "12": 60
   },
   "difficulty_distribution": {
-    "0": 30,
-    "1": 240,
-    "2": 550,
-    "3": 150,
-    "4": 30
+    "0": 10,
+    "1": 120,
+    "2": 570,
+    "3": 240,
+    "4": 60
   },
   "query_template_distribution": {
-    "handoff_risk_brief": 550,
-    "compact_risk_brief": 240,
-    "project_risk_brief": 180,
-    "evidence_trail": 30
+    "project_risk_brief": 300,
+    "compact_risk_brief": 120,
+    "handoff_risk_brief": 570,
+    "evidence_trail": 10
   }
 }

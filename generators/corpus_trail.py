@@ -169,7 +169,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "near_miss_rate": 0.0,
                 "risk_public": True,
                 "stale_docs": False,
-                "cross_refs": True,
+                "cross_refs": False,
             },
             1: {
                 "distractors": 2,
@@ -181,7 +181,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "near_miss_rate": 0.08,
                 "risk_public": True,
                 "stale_docs": True,
-                "cross_refs": True,
+                "cross_refs": False,
             },
             2: {
                 "distractors": 3,
@@ -193,7 +193,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "near_miss_rate": 0.08,
                 "risk_public": True,
                 "stale_docs": True,
-                "cross_refs": True,
+                "cross_refs": False,
             },
             3: {
                 "distractors": 10,
@@ -205,7 +205,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "near_miss_rate": 0.16,
                 "risk_public": True,
                 "stale_docs": True,
-                "cross_refs": True,
+                "cross_refs": False,
             },
             4: {
                 "distractors": 22,

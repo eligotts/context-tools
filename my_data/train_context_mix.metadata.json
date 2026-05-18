@@ -7,25 +7,25 @@
   "optimal_turns_distribution": {
     "6": 175,
     "7": 250,
-    "8": 45,
-    "9": 435,
-    "10": 825,
-    "11": 225,
-    "12": 45
+    "8": 15,
+    "9": 255,
+    "10": 855,
+    "11": 360,
+    "12": 90
   },
   "difficulty_distribution": {
-    "0": 45,
-    "1": 360,
-    "2": 1000,
-    "3": 475,
-    "4": 120
+    "0": 15,
+    "1": 180,
+    "2": 1030,
+    "3": 610,
+    "4": 165
   },
   "query_template_distribution": {
-    "handoff_risk_brief": 825,
-    "compact_risk_brief": 360,
+    "handoff_risk_brief": 855,
+    "project_risk_brief": 450,
     "cursor_checkpoint_audit": 500,
-    "project_risk_brief": 270,
-    "evidence_trail": 45
+    "compact_risk_brief": 180,
+    "evidence_trail": 15
   },
   "mix": {
     "families": {
@@ -33,11 +33,11 @@
       "adaptive_cursor": 0.25
     },
     "corpus_trail_difficulty_mix": {
-      "0": 0.03,
-      "1": 0.24,
-      "2": 0.55,
-      "3": 0.15,
-      "4": 0.03
+      "0": 0.01,
+      "1": 0.12,
+      "2": 0.57,
+      "3": 0.24,
+      "4": 0.06
     },
     "adaptive_cursor_difficulty_mix": {
       "2": 0.35,
@@ -51,11 +51,11 @@
         "4": 75
       },
       "corpus_trail": {
-        "0": 45,
-        "1": 360,
-        "2": 825,
-        "3": 225,
-        "4": 45
+        "0": 15,
+        "1": 180,
+        "2": 855,
+        "3": 360,
+        "4": 90
       }
     }
   }

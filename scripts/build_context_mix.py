@@ -27,7 +27,7 @@ EVAL_SIZE = 200
 # Main training mix: realistic research synthesis dominates, while hard
 # adaptive-cursor tasks keep the sequential ledger/update skill alive.
 FAMILY_MIX = [("corpus_trail", 0.75), ("adaptive_cursor", 0.25)]
-CORPUS_TRAIL_DIFFICULTY_MIX = [(0, 0.03), (1, 0.24), (2, 0.55), (3, 0.15), (4, 0.03)]
+CORPUS_TRAIL_DIFFICULTY_MIX = [(0, 0.01), (1, 0.12), (2, 0.57), (3, 0.24), (4, 0.06)]
 ADAPTIVE_CURSOR_DIFFICULTY_MIX = [(2, 0.35), (3, 0.50), (4, 0.15)]
 
 

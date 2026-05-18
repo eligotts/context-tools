@@ -71,16 +71,21 @@ In standard mode this value caps rendered REPL output, not the model-owned
 hard because `read_doc(...)` output is clipped even though full conversation
 history is available.
 
-Current calibrated `corpus_trail` recipe, as of 2026-05-17:
+Current calibrated `corpus_trail` recipe, as of 2026-05-18:
 
 - train/eval files: `my_data/train_corpus_trail.jsonl` and
   `my_data/eval_corpus_trail.jsonl`
-- mix: d0 3%, d1 24%, d2 55%, d3 15%, d4 3%
+- mix: d0 1%, d1 12%, d2 57%, d3 24%, d4 6%
 - d2 is the bridge tier: all five evidence documents are still required, but
   the final schema is `project, internal_code, owner, deadline, decision,
   evidence`
 - d3/d4 use the full risk brief schema with blocker included
 - per-example caps: d0 950, d1 1050, d2 1650, d3 1750, d4 1850
+- `search_docs(...)` snippets are locator-only. They should identify candidate
+  documents but not expose answer-bearing source fields or evidence chains.
+- final risk memos must not include explicit evidence-order or evidence
+  cross-reference blocks; the model should discover the chain by reading the
+  relevant source documents.
 - measured anchors on an 8-example slice:
   base `Qwen/Qwen3.5-35B-A3B`, `cr=false`, `-r 4`: pass@1 0.969, pass@4 1.0
   checkpoint `Qwen/Qwen3.5-35B-A3B:or87qviuv7jbhd5i84amqofj`, `cr=true`,
@@ -99,7 +104,7 @@ Current default training recipe, as of 2026-05-18:
 - `load_environment()` defaults point at those mixed files, so training can run
   without dataset env args
 - family mix: 75% `corpus_trail`, 25% hard `adaptive_cursor`
-- corpus-trail difficulty mix: d0 3%, d1 24%, d2 55%, d3 15%, d4 3%
+- corpus-trail difficulty mix: d0 1%, d1 12%, d2 57%, d3 24%, d4 6%
 - adaptive-cursor difficulty mix: d2 35%, d3 50%, d4 15%
 - keep `max_turns=15` and `context_rewrite=True` defaults
 - the purpose of the adaptive-cursor slice is diversification: retain
@@ -156,6 +161,25 @@ Look for these properties:
 - Raw append-only traces should overflow or lose essential evidence under the truncation cap.
 - A success after many wasted turns is not enough. Within `max_turns=15`, the task should require steady progress and visible intermediate decisions.
 - The task text should be separate from `context_window` unless the user explicitly asks to test a different prompting regime.
+
+Always run an explicit leakage audit after corpus/search-domain evals. Do not
+trust aggregate pass rates alone. For each successful rollout, count tool calls
+before `submit_answer(...)`, especially `read_doc(...)`/`observe(...)` calls and
+the turn index of submission. Manually inspect all successes with suspiciously
+few source reads, early submission, or no meaningful context writes. Confirm
+that search/list snippets do not expose answer-bearing fields, full evidence
+orders, final ids, owner/deadline/decision values, or any source text that makes
+the task solvable without opening the source documents. If any such trace
+exists, treat it as a data/tool-surface bug even if the reward is correct.
+
+For `corpus_trail`, inspect the exact rendered `search_docs(...)` output for at
+least one successful example per difficulty tier and for every suspicious
+success. The expected shape is locator-only candidate ids/titles plus neutral
+source-kind metadata; source facts must come from `read_doc(...)`. Also grep the
+generated JSONL source docs for explicit answer-chain markers such as
+`Evidence order`, `Evidence cross-reference`, `Identity evidence`,
+`Owner/deadline evidence`, `Blocker evidence`, `Policy evidence`, and
+`Final memo evidence`.
 
 After every eval, inspect both successes and failures by eye before changing data. Classify failures into concrete causes: retrieval route missed, wrong distractor selected, durable fact forgotten, final schema/format mistake, answer guessed, too many raw appends, context overwritten badly, max turns reached after real progress, or max turns reached after loops/no progress. Make targeted data changes that address the observed cause; do not blindly scale all difficulty up or down.
 
