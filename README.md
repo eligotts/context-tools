@@ -1,6 +1,6 @@
 # context-tools
 
-Sandboxed Python-REPL harness for training models to **manage their own context** across turns. The current default data mix focuses on adaptive-cursor tasks: ordinary REPL tools return cursor pages, and the model has to decide what returned information to keep, compact, overwrite, or discard in `context_window`.
+Sandboxed Python-REPL harness for training models to **manage their own context** across turns. The current default data mix combines realistic corpus-trail research synthesis with hard adaptive-cursor ledger tasks, so raw appending fails under `context_rewrite=True` and compact state management is the reliable path.
 
 ## How it works
 
@@ -23,8 +23,8 @@ The toggle `context_rewrite` selects the prompting flavor:
 context_tools.py    ContextToolsEnv (subclasses RLMEnv) + load_environment
 taskset.py          ContextToolsTaskSet (data wrapper)
 generators/         deterministic, solver-verified data pipeline
-scripts/            data-generation CLIs, including build_adaptive_cursor.py and build_corpus_trail.py
-my_data/            default adaptive-cursor files plus optional corpus-trail train/eval JSONL files
+scripts/            data-generation CLIs, including build_context_mix.py
+my_data/            default mixed train/eval JSONL files plus per-family splits
 ```
 
 ## Task families
@@ -41,7 +41,7 @@ All have a single submitted answer per rollout, programmatically verifiable.
 | `adaptive_cursor` | `observe` | choose what returned cursor-page content to preserve | checkpoint ledger audit rows |
 | `corpus_trail` | `search_docs`, `read_doc` | retain durable source-tagged facts across a noisy research DAG | structured project risk brief with evidence ids |
 
-The default train/eval mix uses `adaptive_cursor/cursor_checkpoint_audit` across difficulties 0-4 with a `3/10/27/50/10` frontier curriculum: small d0/d1 anchors, d2 bridge tasks, d3 as the main pressure point, and a capped d4 tail. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)` is just an ordinary Python function returning a page string; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`. The task pressure comes from keeping enough ownership/count state visible while avoiding raw-page append logs that overflow the cap.
+The default train/eval mix is 75% `corpus_trail` and 25% hard `adaptive_cursor`. `corpus_trail` uses the calibrated `3/24/55/15/3` difficulty mix; the adaptive-cursor slice uses only d2/d3/d4 at `35/50/15` so it reinforces sequential ledger/update discipline without dominating the research-synthesis frontier. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)`, `search_docs(...)`, and `read_doc(...)` are ordinary Python functions; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`.
 
 `corpus_trail` is an answer-first research family. Each example samples a final JSON brief, constructs a hidden evidence DAG with reusable facts such as aliases and policy rules, renders that DAG into verbose source documents plus distractors, and seeds the REPL with a long `BRIEFING_DOC`. The model must search/read documents and keep compact notes because raw gold documents are several times larger than the per-example context cap. Unlike adaptive-cursor, corpus-trail uses final exact JSON correctness only; there is no partial process reward for this family.
 
@@ -52,11 +52,8 @@ Legacy families are solver-verified at generation time. `corpus_trail` is answer
 ```bash
 prime env install context-tools
 
-# Re-generate the default adaptive-cursor train/eval sets
-python scripts/build_adaptive_cursor.py
-
-# Generate the first corpus-trail research train/eval sets
-python scripts/build_corpus_trail.py
+# Re-generate the default mixed train/eval sets
+python scripts/build_context_mix.py
 
 # Smoke-test eval
 prime eval run context-tools -m gpt-4.1-mini -n 5 -r 1
@@ -68,8 +65,8 @@ prime eval run context-tools -m gpt-4.1-mini -n 5 -r 1
 
 | Arg | Type | Default | Description |
 |-----|------|---------|-------------|
-| `dataset_path` | str | `my_data/train_adaptive_cursor.jsonl` | Training JSONL (2,000 adaptive-cursor rows) |
-| `eval_path` | str | `my_data/eval_adaptive_cursor.jsonl` | Held-out eval JSONL (200 rows) |
+| `dataset_path` | str | `my_data/train_context_mix.jsonl` | Training JSONL (2,000 rows: 75% corpus_trail, 25% hard adaptive_cursor) |
+| `eval_path` | str | `my_data/eval_context_mix.jsonl` | Held-out eval JSONL (200 rows with the same default mix) |
 | `context_rewrite` | bool | `True` | True: model curates `context_window`. False: standard tool-calling flow. |
 | `max_turns` | int | 15 | Max rollout turns |
 | `max_context_chars` | int | 400 | Display cap on rendered model-curated `context_window` slots (cr=True) / per-tool-response cap (cr=False) |

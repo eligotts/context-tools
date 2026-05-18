@@ -92,6 +92,20 @@ truncation than failures: mean truncation about 3.3 vs 8.5, append count about
 desired pressure: the task is not impossible, but raw append-heavy traces lose
 state and fail.
 
+Current default training recipe, as of 2026-05-18:
+
+- default files: `my_data/train_context_mix.jsonl` and
+  `my_data/eval_context_mix.jsonl`
+- `load_environment()` defaults point at those mixed files, so training can run
+  without dataset env args
+- family mix: 75% `corpus_trail`, 25% hard `adaptive_cursor`
+- corpus-trail difficulty mix: d0 3%, d1 24%, d2 55%, d3 15%, d4 3%
+- adaptive-cursor difficulty mix: d2 35%, d3 50%, d4 15%
+- keep `max_turns=15` and `context_rewrite=True` defaults
+- the purpose of the adaptive-cursor slice is diversification: retain
+  sequential ledger/update pressure while corpus-trail provides the dominant
+  realistic search/synthesis signal
+
 Then run the trained checkpoint with `context_rewrite=true`:
 
 ```bash

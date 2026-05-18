@@ -2454,14 +2454,12 @@ def load_environment(
             a normal tool response.
     """
     here = Path(__file__).parent
-    # Default training set: adaptive-cursor mix. Built by
-    # ``scripts/build_adaptive_cursor.py``. observe(handle) is an ordinary
-    # REPL function; context pressure comes from deciding what returned page
-    # content to preserve in the hard-truncated context_window.
+    # Default training set: 75% corpus_trail research tasks plus 25% hard
+    # adaptive_cursor ledger tasks. Built by ``scripts/build_context_mix.py``.
     if dataset_path is None:
-        dataset_path = here / "my_data" / "train_adaptive_cursor.jsonl"
+        dataset_path = here / "my_data" / "train_context_mix.jsonl"
     if eval_path is None:
-        eval_path = here / "my_data" / "eval_adaptive_cursor.jsonl"
+        eval_path = here / "my_data" / "eval_context_mix.jsonl"
 
     train = ContextToolsTaskSet(dataset_path=dataset_path, name="context-tools")
     eval_ts = ContextToolsTaskSet(dataset_path=eval_path, name="context-tools-eval")

@@ -1,0 +1,62 @@
+{
+  "total_examples": 200,
+  "world_distribution": {
+    "corpus_trail": 150,
+    "adaptive_cursor": 50
+  },
+  "optimal_turns_distribution": {
+    "6": 17,
+    "7": 26,
+    "8": 4,
+    "9": 44,
+    "10": 83,
+    "11": 22,
+    "12": 4
+  },
+  "difficulty_distribution": {
+    "0": 4,
+    "1": 37,
+    "2": 100,
+    "3": 48,
+    "4": 11
+  },
+  "query_template_distribution": {
+    "handoff_risk_brief": 83,
+    "compact_risk_brief": 37,
+    "cursor_checkpoint_audit": 50,
+    "project_risk_brief": 26,
+    "evidence_trail": 4
+  },
+  "mix": {
+    "families": {
+      "corpus_trail": 0.75,
+      "adaptive_cursor": 0.25
+    },
+    "corpus_trail_difficulty_mix": {
+      "0": 0.03,
+      "1": 0.24,
+      "2": 0.55,
+      "3": 0.15,
+      "4": 0.03
+    },
+    "adaptive_cursor_difficulty_mix": {
+      "2": 0.35,
+      "3": 0.5,
+      "4": 0.15
+    },
+    "world_difficulty_distribution": {
+      "adaptive_cursor": {
+        "2": 17,
+        "3": 26,
+        "4": 7
+      },
+      "corpus_trail": {
+        "0": 4,
+        "1": 37,
+        "2": 83,
+        "3": 22,
+        "4": 4
+      }
+    }
+  }
+}
