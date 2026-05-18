@@ -4,23 +4,20 @@
     "corpus_trail": 1000
   },
   "optimal_turns_distribution": {
-    "8": 10,
-    "9": 120,
+    "9": 130,
     "10": 570,
     "11": 240,
     "12": 60
   },
   "difficulty_distribution": {
-    "0": 10,
-    "1": 120,
+    "1": 130,
     "2": 570,
     "3": 240,
     "4": 60
   },
   "query_template_distribution": {
     "project_risk_brief": 300,
-    "compact_risk_brief": 120,
-    "handoff_risk_brief": 570,
-    "evidence_trail": 10
+    "compact_risk_brief": 130,
+    "handoff_risk_brief": 570
   }
 }

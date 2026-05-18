@@ -75,12 +75,14 @@ Current calibrated `corpus_trail` recipe, as of 2026-05-18:
 
 - train/eval files: `my_data/train_corpus_trail.jsonl` and
   `my_data/eval_corpus_trail.jsonl`
-- mix: d0 1%, d1 12%, d2 57%, d3 24%, d4 6%
+- mix: d1 13%, d2 57%, d3 24%, d4 6%; d0 is excluded from
+  default corpus data because the five-doc version was too easy to solve from
+  document roles alone
 - d2 is the bridge tier: all five evidence documents are still required, but
   the final schema is `project, internal_code, owner, deadline, decision,
   evidence`
 - d3/d4 use the full risk brief schema with blocker included
-- per-example caps: d0 950, d1 1050, d2 1650, d3 1750, d4 1850
+- per-example caps: d1 1050, d2 1650, d3 1750, d4 1850
 - `search_docs(...)` snippets are locator-only. They should identify candidate
   documents but not expose answer-bearing source fields or evidence chains.
 - final risk memos must not include explicit evidence-order or evidence
@@ -104,7 +106,7 @@ Current default training recipe, as of 2026-05-18:
 - `load_environment()` defaults point at those mixed files, so training can run
   without dataset env args
 - family mix: 75% `corpus_trail`, 25% hard `adaptive_cursor`
-- corpus-trail difficulty mix: d0 1%, d1 12%, d2 57%, d3 24%, d4 6%
+- corpus-trail difficulty mix: d1 13%, d2 57%, d3 24%, d4 6%
 - adaptive-cursor difficulty mix: d2 35%, d3 50%, d4 15%
 - keep `max_turns=15` and `context_rewrite=True` defaults
 - the purpose of the adaptive-cursor slice is diversification: retain

@@ -160,15 +160,15 @@ class CorpusTrailWorld(WorldGenerator):
         difficulty = max(0, min(4, difficulty if difficulty is not None else 2))
         params = {
             0: {
-                "distractors": 0,
-                "cap": 950,
+                "distractors": 2,
+                "cap": 1050,
                 "doc_chars": 420,
                 "lag": 2,
-                "briefing_noise": 0,
+                "briefing_noise": 1,
                 "snippet_chars": 220,
-                "near_miss_rate": 0.0,
+                "near_miss_rate": 0.08,
                 "risk_public": True,
-                "stale_docs": False,
+                "stale_docs": True,
                 "cross_refs": False,
             },
             1: {

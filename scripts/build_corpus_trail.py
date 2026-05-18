@@ -29,10 +29,12 @@ OUT_DIR = HERE / "my_data"
 TRAIN_SIZE = 1000
 EVAL_SIZE = 120
 
-# Frontier mix with a small on-ramp for cr=true. d0/d1 keep the same
-# five-source evidence-trail shape with shorter reachability, but most mass
-# stays on d2+ where delayed owner/policy synthesis creates memory pressure.
-DIFFICULTY_MIX = [(0, 0.01), (1, 0.12), (2, 0.57), (3, 0.24), (4, 0.06)]
+# Frontier mix with a small on-ramp for cr=true. d0 remains available for
+# targeted smoke tests, but it is excluded from the default generated corpus
+# datasets because it can be too easy to solve from document roles alone.
+# Most mass stays on d2+ where delayed owner/policy synthesis creates memory
+# pressure.
+DIFFICULTY_MIX = [(1, 0.13), (2, 0.57), (3, 0.24), (4, 0.06)]
 
 
 def _counts(n: int) -> dict[int, int]:

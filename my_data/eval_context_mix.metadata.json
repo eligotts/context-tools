@@ -7,15 +7,13 @@
   "optimal_turns_distribution": {
     "6": 17,
     "7": 26,
-    "8": 1,
-    "9": 25,
+    "9": 26,
     "10": 86,
     "11": 36,
     "12": 9
   },
   "difficulty_distribution": {
-    "0": 1,
-    "1": 18,
+    "1": 19,
     "2": 103,
     "3": 62,
     "4": 16
@@ -24,8 +22,7 @@
     "handoff_risk_brief": 86,
     "project_risk_brief": 45,
     "cursor_checkpoint_audit": 50,
-    "compact_risk_brief": 18,
-    "evidence_trail": 1
+    "compact_risk_brief": 19
   },
   "mix": {
     "families": {
@@ -33,8 +30,7 @@
       "adaptive_cursor": 0.25
     },
     "corpus_trail_difficulty_mix": {
-      "0": 0.01,
-      "1": 0.12,
+      "1": 0.13,
       "2": 0.57,
       "3": 0.24,
       "4": 0.06
@@ -51,8 +47,7 @@
         "4": 7
       },
       "corpus_trail": {
-        "0": 1,
-        "1": 18,
+        "1": 19,
         "2": 86,
         "3": 36,
         "4": 9
