@@ -1,56 +1,67 @@
 {
-  "total_examples": 2000,
+  "total_examples": 8000,
   "world_distribution": {
-    "corpus_trail": 1500,
-    "adaptive_cursor": 500
+    "adaptive_cursor": 4800,
+    "corpus_trail": 3200
   },
   "optimal_turns_distribution": {
-    "6": 175,
-    "7": 250,
-    "9": 270,
-    "10": 855,
-    "11": 360,
-    "12": 90
+    "4": 576,
+    "5": 1104,
+    "6": 1680,
+    "7": 1056,
+    "8": 96,
+    "9": 1088,
+    "10": 1664,
+    "11": 576,
+    "12": 160
   },
   "difficulty_distribution": {
-    "1": 195,
-    "2": 1030,
-    "3": 610,
-    "4": 165
+    "0": 672,
+    "1": 1808,
+    "2": 3344,
+    "3": 1632,
+    "4": 544
   },
   "query_template_distribution": {
-    "handoff_risk_brief": 855,
-    "project_risk_brief": 450,
-    "cursor_checkpoint_audit": 500,
-    "compact_risk_brief": 195
+    "cursor_checkpoint_audit": 4800,
+    "handoff_risk_brief": 1664,
+    "compact_risk_brief": 704,
+    "project_risk_brief": 736,
+    "evidence_trail": 96
   },
   "mix": {
     "families": {
-      "corpus_trail": 0.75,
-      "adaptive_cursor": 0.25
+      "adaptive_cursor": 0.6,
+      "corpus_trail": 0.4
     },
     "corpus_trail_difficulty_mix": {
-      "1": 0.13,
-      "2": 0.57,
-      "3": 0.24,
-      "4": 0.06
+      "0": 0.03,
+      "1": 0.22,
+      "2": 0.52,
+      "3": 0.18,
+      "4": 0.05
     },
     "adaptive_cursor_difficulty_mix": {
+      "0": 0.12,
+      "1": 0.23,
       "2": 0.35,
-      "3": 0.5,
-      "4": 0.15
+      "3": 0.22,
+      "4": 0.08
     },
     "world_difficulty_distribution": {
       "adaptive_cursor": {
-        "2": 175,
-        "3": 250,
-        "4": 75
+        "0": 576,
+        "1": 1104,
+        "2": 1680,
+        "3": 1056,
+        "4": 384
       },
       "corpus_trail": {
-        "1": 195,
-        "2": 855,
-        "3": 360,
-        "4": 90
+        "0": 96,
+        "1": 704,
+        "2": 1664,
+        "3": 576,
+        "4": 160
       }
     }
   }

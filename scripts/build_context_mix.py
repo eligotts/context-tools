@@ -21,14 +21,27 @@ from scripts.build_corpus_trail import validate as validate_corpus_trail  # noqa
 
 HERE = Path(__file__).resolve().parent.parent
 OUT_DIR = HERE / "my_data"
-TRAIN_SIZE = 2000
-EVAL_SIZE = 200
+TRAIN_SIZE = 8000
+EVAL_SIZE = 800
 
-# Main training mix: realistic research synthesis dominates, while hard
-# adaptive-cursor tasks keep the sequential ledger/update skill alive.
-FAMILY_MIX = [("corpus_trail", 0.75), ("adaptive_cursor", 0.25)]
-CORPUS_TRAIL_DIFFICULTY_MIX = [(1, 0.13), (2, 0.57), (3, 0.24), (4, 0.06)]
-ADAPTIVE_CURSOR_DIFFICULTY_MIX = [(2, 0.35), (3, 0.50), (4, 0.15)]
+# From-scratch curriculum: adaptive cursor is the on-ramp and dominant signal,
+# while corpus trail introduces realistic search/synthesis pressure once the
+# model starts earning variance under zero-gradient filtering.
+FAMILY_MIX = [("adaptive_cursor", 0.60), ("corpus_trail", 0.40)]
+ADAPTIVE_CURSOR_DIFFICULTY_MIX = [
+    (0, 0.12),
+    (1, 0.23),
+    (2, 0.35),
+    (3, 0.22),
+    (4, 0.08),
+]
+CORPUS_TRAIL_DIFFICULTY_MIX = [
+    (0, 0.03),
+    (1, 0.22),
+    (2, 0.52),
+    (3, 0.18),
+    (4, 0.05),
+]
 
 
 def _counts(n: int, mix: list[tuple[int | str, float]]) -> dict[int | str, int]:
@@ -166,7 +179,7 @@ def main() -> None:
             {
                 "train": str(train_path.relative_to(HERE)),
                 "eval": str(eval_path.relative_to(HERE)),
-                "note": "default 75% corpus_trail / 25% hard adaptive_cursor context-management mix",
+                "note": "default 60% adaptive_cursor / 40% corpus_trail from-scratch context-management mix",
             },
             indent=2,
         )

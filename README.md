@@ -1,6 +1,6 @@
 # context-tools
 
-Sandboxed Python-REPL harness for training models to **manage their own context** across turns. The current default data mix combines realistic corpus-trail research synthesis with hard adaptive-cursor ledger tasks, so raw appending fails under `context_rewrite=True` and compact state management is the reliable path.
+Sandboxed Python-REPL harness for training models to **manage their own context** across turns. The current default data mix combines adaptive-cursor ledger tasks with realistic corpus-trail research synthesis, so raw appending fails under `context_rewrite=True` and compact state management is the reliable path.
 
 ## How it works
 
@@ -41,7 +41,7 @@ All have a single submitted answer per rollout, programmatically verifiable.
 | `adaptive_cursor` | `observe` | choose what returned cursor-page content to preserve | checkpoint ledger audit rows |
 | `corpus_trail` | `search_docs`, `read_doc` | retain durable source-tagged facts across a noisy research DAG | structured project risk brief with evidence ids |
 
-The default train/eval mix is 75% `corpus_trail` and 25% hard `adaptive_cursor`. `corpus_trail` uses the calibrated `13/57/24/6` difficulty mix over d1/d2/d3/d4; d0 is excluded from default training because it is too small to reliably force evidence triage. The adaptive-cursor slice uses only d2/d3/d4 at `35/50/15` so it reinforces sequential ledger/update discipline without dominating the research-synthesis frontier. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)`, `search_docs(...)`, and `read_doc(...)` are ordinary Python functions; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`.
+The default train/eval mix is 60% `adaptive_cursor` and 40% `corpus_trail`, calibrated for from-scratch training with zero-gradient filtering. `adaptive_cursor` uses d0/d1/d2/d3/d4 at `12/23/35/22/8` within the family so early training has a broad easy on-ramp before harder ledger-update tasks enter. `corpus_trail` uses d0/d1/d2/d3/d4 at `3/22/52/18/5` within the family; d0 stays tiny because larger mass there can revive easy document-role shortcuts. There is no small manufactured per-turn tool-call limit. In `context_rewrite=True`, `observe(handle)`, `search_docs(...)`, and `read_doc(...)` are ordinary Python functions; the next prompt is only the hard-truncated render of whatever the model itself placed in `context_window`.
 
 `corpus_trail` is an answer-first research family. Each example samples a final JSON brief, constructs a hidden evidence DAG with reusable facts such as aliases and policy rules, renders that DAG into verbose source documents plus distractors, and seeds the REPL with a long `BRIEFING_DOC`. `search_docs(...)` returns locator-only snippets; answer-bearing source text is only exposed through `read_doc(...)`. The model must search/read documents and keep compact notes because raw gold documents are several times larger than the per-example context cap. Unlike adaptive-cursor, corpus-trail uses final exact JSON correctness only; there is no partial process reward for this family.
 
@@ -65,8 +65,8 @@ prime eval run context-tools -m gpt-4.1-mini -n 5 -r 1
 
 | Arg | Type | Default | Description |
 |-----|------|---------|-------------|
-| `dataset_path` | str | `my_data/train_context_mix.jsonl` | Training JSONL (2,000 rows: 75% corpus_trail, 25% hard adaptive_cursor) |
-| `eval_path` | str | `my_data/eval_context_mix.jsonl` | Held-out eval JSONL (200 rows with the same default mix) |
+| `dataset_path` | str | `my_data/train_context_mix.jsonl` | Training JSONL (8,000 rows: 60% adaptive_cursor, 40% corpus_trail) |
+| `eval_path` | str | `my_data/eval_context_mix.jsonl` | Held-out eval JSONL (800 rows with the same default mix) |
 | `context_rewrite` | bool | `True` | True: model curates `context_window`. False: standard tool-calling flow. |
 | `max_turns` | int | 15 | Max rollout turns |
 | `max_context_chars` | int | 400 | Display cap on rendered model-curated `context_window` slots (cr=True) / per-tool-response cap (cr=False) |

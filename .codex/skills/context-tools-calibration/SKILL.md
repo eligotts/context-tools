@@ -99,19 +99,22 @@ truncation than failures: mean truncation about 3.3 vs 8.5, append count about
 desired pressure: the task is not impossible, but raw append-heavy traces lose
 state and fail.
 
-Current default training recipe, as of 2026-05-18:
+Current default training recipe, as of 2026-05-19:
 
 - default files: `my_data/train_context_mix.jsonl` and
   `my_data/eval_context_mix.jsonl`
 - `load_environment()` defaults point at those mixed files, so training can run
   without dataset env args
-- family mix: 75% `corpus_trail`, 25% hard `adaptive_cursor`
-- corpus-trail difficulty mix: d1 13%, d2 57%, d3 24%, d4 6%
-- adaptive-cursor difficulty mix: d2 35%, d3 50%, d4 15%
+- train/eval sizes: 8000 / 800 rows
+- family mix: 60% `adaptive_cursor`, 40% `corpus_trail`
+- adaptive-cursor difficulty mix: d0 12%, d1 23%, d2 35%, d3 22%, d4 8%
+- corpus-trail difficulty mix: d0 3%, d1 22%, d2 52%, d3 18%, d4 5%
 - keep `max_turns=15` and `context_rewrite=True` defaults
-- the purpose of the adaptive-cursor slice is diversification: retain
-  sequential ledger/update pressure while corpus-trail provides the dominant
-  realistic search/synthesis signal
+- this is the from-scratch recipe. Adaptive cursor is the on-ramp and dominant
+  early signal, while corpus trail introduces realistic search/synthesis once
+  zero-gradient filtering starts admitting solvable document tasks.
+- d0 is present in both families for startup coverage, but corpus d0 stays tiny
+  because larger mass there can revive the easy document-role shortcut.
 
 Then run the trained checkpoint with `context_rewrite=true`:
 
