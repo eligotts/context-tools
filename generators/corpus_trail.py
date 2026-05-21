@@ -160,25 +160,25 @@ class CorpusTrailWorld(WorldGenerator):
         difficulty = max(0, min(4, difficulty if difficulty is not None else 2))
         params = {
             0: {
-                "distractors": 2,
-                "cap": 1050,
-                "doc_chars": 420,
+                "distractors": 0,
+                "cap": 2200,
+                "doc_chars": 280,
                 "lag": 2,
-                "briefing_noise": 1,
+                "briefing_noise": 0,
                 "snippet_chars": 220,
-                "near_miss_rate": 0.08,
+                "near_miss_rate": 0.0,
                 "risk_public": True,
-                "stale_docs": True,
+                "stale_docs": False,
                 "cross_refs": False,
             },
             1: {
-                "distractors": 2,
-                "cap": 1050,
-                "doc_chars": 500,
+                "distractors": 1,
+                "cap": 1500,
+                "doc_chars": 380,
                 "lag": 2,
-                "briefing_noise": 1,
+                "briefing_noise": 0,
                 "snippet_chars": 220,
-                "near_miss_rate": 0.08,
+                "near_miss_rate": 0.05,
                 "risk_public": True,
                 "stale_docs": True,
                 "cross_refs": False,
@@ -186,12 +186,12 @@ class CorpusTrailWorld(WorldGenerator):
             2: {
                 "distractors": 3,
                 "cap": 1650,
-                "doc_chars": 500,
+                "doc_chars": 540,
                 "lag": 3,
-                "briefing_noise": 1,
+                "briefing_noise": 2,
                 "snippet_chars": 180,
-                "near_miss_rate": 0.08,
-                "risk_public": True,
+                "near_miss_rate": 0.10,
+                "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
             },
@@ -203,7 +203,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "briefing_noise": 7,
                 "snippet_chars": 150,
                 "near_miss_rate": 0.16,
-                "risk_public": True,
+                "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
             },
@@ -232,7 +232,12 @@ class CorpusTrailWorld(WorldGenerator):
             if difficulty <= 1
             else BLOCKERS
         )
-        blocker, decision = rng.choice(blocker_pool)
+        project_tokens = set(_tokenize(project))
+        blocker_candidates = [
+            item for item in blocker_pool
+            if not (project_tokens & set(_tokenize(item[0])))
+        ]
+        blocker, decision = rng.choice(blocker_candidates or blocker_pool)
         old_decision = rng.choice([d for d in ["ready", "blocked", "review", "escalate"] if d != decision])
         deadline_day = rng.randint(12, 25)
         old_deadline_day = max(2, deadline_day - rng.randint(3, 8))
@@ -241,6 +246,7 @@ class CorpusTrailWorld(WorldGenerator):
         policy_id = f"POL-{rng.randint(40, 89)}"
         ticket_id = f"TCK-{rng.randint(1000, 9999)}"
         structured_sources = difficulty <= 2
+        neutral_surface = difficulty >= 2
 
         def source_body(fields: list[tuple[str, str]], narrative: str) -> str:
             if not structured_sources:
@@ -251,7 +257,7 @@ class CorpusTrailWorld(WorldGenerator):
         docs: dict[str, dict[str, Any]] = {}
 
         def add_doc(prefix: str, title: str, date: str, body: str, keywords: list[str], *, target: int | None = None) -> str:
-            doc_id = _doc_id(prefix, used_doc_ids, rng)
+            doc_id = _doc_id("doc" if neutral_surface else prefix, used_doc_ids, rng)
             docs[doc_id] = {
                 "id": doc_id,
                 "title": title,
@@ -261,9 +267,43 @@ class CorpusTrailWorld(WorldGenerator):
             }
             return doc_id
 
+        def title(role: str) -> str:
+            if not neutral_surface:
+                return {
+                    "identity": f"Alias registry for {project}",
+                    "old_owner": f"Older launch owner note for {internal_code}",
+                    "owner": f"Current ownership and date for {internal_code}",
+                    "old_ticket": f"Historical ticket status for {vendor_alias}",
+                    "blocker": f"Evidence ticket {ticket_id} for {internal_code}",
+                    "policy": f"{policy_id} launch risk decision policy",
+                }[role]
+            return {
+                "identity": f"Reference note for {project}",
+                "old_owner": f"Earlier planning note {internal_code}",
+                "owner": f"June routing note {internal_code}",
+                "old_ticket": f"Prior vendor status {ticket_id}",
+                "blocker": f"Vendor issue packet {ticket_id}",
+                "policy": f"Decision standard {policy_id}",
+            }[role]
+
+        def owner_narrative() -> str:
+            if neutral_surface:
+                return (
+                    f"Current launch handoff for {internal_code}: owner is {owner}. "
+                    f"The active deadline is {deadline}. This supersedes older "
+                    f"ownership notes for this launch stream and applies to the "
+                    f"vendor alias {vendor_alias}."
+                )
+            return (
+                f"Current launch handoff for {internal_code}: owner is {owner}. "
+                f"The active deadline is {deadline}. This supersedes older "
+                f"ownership notes for {project} and applies to the vendor alias "
+                f"{vendor_alias}."
+            )
+
         identity_id = add_doc(
             "memo",
-            f"Alias registry for {project}",
+            title("identity"),
             _date(2),
             source_body(
                 [
@@ -284,7 +324,7 @@ class CorpusTrailWorld(WorldGenerator):
         if params["stale_docs"]:
             stale_owner_id = add_doc(
                 "email",
-                f"Older launch owner note for {internal_code}",
+                title("old_owner"),
                 _date(5),
                 (
                     f"Earlier planning note for {internal_code}: {old_owner} was "
@@ -299,7 +339,7 @@ class CorpusTrailWorld(WorldGenerator):
 
         owner_id = add_doc(
             "handoff",
-            f"Current ownership and date for {internal_code}",
+            title("owner"),
             _date(11),
             source_body(
                 [
@@ -308,18 +348,19 @@ class CorpusTrailWorld(WorldGenerator):
                     ("Deadline", deadline),
                     ("Vendor alias", vendor_alias),
                 ],
-                f"Current launch handoff for {internal_code}: owner is {owner}. "
-                f"The active deadline is {deadline}. This supersedes older "
-                f"ownership notes for {project} and applies to the vendor alias "
-                f"{vendor_alias}.",
+                owner_narrative(),
             ),
-            [internal_code, project, owner, deadline, vendor_alias, "handoff"],
+            (
+                [internal_code, owner, deadline, vendor_alias, "handoff"]
+                if neutral_surface
+                else [internal_code, project, owner, deadline, vendor_alias, "handoff"]
+            ),
         )
 
         if params["stale_docs"]:
             stale_ticket_id = add_doc(
                 "ticket",
-                f"Historical ticket status for {vendor_alias}",
+                title("old_ticket"),
                 _date(12),
                 (
                     f"Historical status update for {ticket_id}: launch looked "
@@ -334,7 +375,7 @@ class CorpusTrailWorld(WorldGenerator):
 
         blocker_id = add_doc(
             "ticket",
-            f"Evidence ticket {ticket_id} for {internal_code}",
+            title("blocker"),
             _date(14),
             source_body(
                 [
@@ -354,7 +395,7 @@ class CorpusTrailWorld(WorldGenerator):
 
         policy_id_doc = add_doc(
             "policy",
-            f"{policy_id} launch risk decision policy",
+            title("policy"),
             _date(16),
             source_body(
                 [
@@ -372,11 +413,12 @@ class CorpusTrailWorld(WorldGenerator):
             [policy_id, blocker, decision, "risk", "decision"],
         )
 
-        risk_title = (
-            f"Final risk memo for {project} / {vendor_alias} ticket {ticket_id}"
-            if params["risk_public"]
-            else f"Final risk memo for {vendor_alias} ticket {ticket_id}"
-        )
+        if params["risk_public"]:
+            risk_title = f"Final risk memo for {project} / {vendor_alias} ticket {ticket_id}"
+        elif neutral_surface:
+            risk_title = f"Board disposition packet {vendor_alias} {ticket_id}"
+        else:
+            risk_title = f"Final risk memo for {vendor_alias} ticket {ticket_id}"
         cross_ref_line = (
             "Evidence cross-reference: use "
             f"{identity_id} for identity, {owner_id} for ownership/date, "
@@ -464,21 +506,37 @@ class CorpusTrailWorld(WorldGenerator):
                 # Near-miss docs share one target token but point elsewhere.
                 other_vendor = vendor_alias if rng.random() < 0.5 else other_vendor
                 other_code = internal_code[:2] + "-" + str(rng.randint(100, 999))
-            title = rng.choice([
+            distractor_title = rng.choice([
                 f"{kind.title()} note for {other_project}",
                 f"{other_code} {kind} update",
                 f"{other_vendor} historical packet",
             ])
-            body = (
-                f"This {kind} concerns {other_project}, not {project}. "
-                f"It may mention {other_vendor}, {other_code}, owner "
-                f"{other_owner}, blocker {other_blocker}, and decision "
-                f"{other_decision}. Do not merge it with {internal_code} unless "
-                f"the alias registry explicitly connects the identifiers."
-            )
+            if neutral_surface:
+                distractor_title = rng.choice([
+                    f"Reference note {other_code}",
+                    f"Vendor issue packet {rng.choice([ticket_id, f'TCK-{rng.randint(1000, 9999)}'])}",
+                    f"Board packet {other_vendor}",
+                    f"Decision standard POL-{rng.randint(40, 89)}",
+                ])
+            if neutral_surface:
+                body = (
+                    f"This {kind} concerns {other_project}. It may mention "
+                    f"{other_vendor}, {other_code}, owner {other_owner}, blocker "
+                    f"{other_blocker}, and decision {other_decision}. Treat it "
+                    "as unrelated unless a source-of-record alias mapping connects "
+                    "the identifiers."
+                )
+            else:
+                body = (
+                    f"This {kind} concerns {other_project}. It may mention "
+                    f"{other_vendor}, {other_code}, owner {other_owner}, "
+                    f"blocker {other_blocker}, and decision {other_decision}. "
+                    "Treat it as unrelated unless a source-of-record alias "
+                    "mapping connects the identifiers."
+                )
             add_doc(
                 kind,
-                title,
+                distractor_title,
                 _date(rng.randint(1, 24)),
                 body,
                 [other_project, other_code, other_vendor, other_owner, other_decision],
@@ -489,8 +547,27 @@ class CorpusTrailWorld(WorldGenerator):
         # citable source in the final answer.
         briefing_lines = [
             "Research intake briefing. Use this as a starting note, not as a final evidence source.",
-            f"The user-facing project name is {project}. The alias registry should confirm that it maps to {internal_code} and vendor alias {vendor_alias}.",
-            f"Compliance classifications for this batch reference {policy_id}; the policy may be needed again after you inspect the ticket and risk memo.",
+            (
+                f"The user-facing project name is {project}. The alias registry should "
+                f"confirm that it maps to {internal_code} and vendor alias {vendor_alias}."
+                if not neutral_surface
+                else (
+                    f"The user-facing project name is {project}. Start by finding the "
+                    "source-of-record mapping; later documents may use only the internal "
+                    "code or vendor alias, and those identifiers are needed again near "
+                    "the end."
+                )
+            ),
+            (
+                f"Compliance classifications for this batch reference {policy_id}; "
+                "the policy may be needed again after you inspect the ticket and risk memo."
+                if not neutral_surface
+                else (
+                    "The active ticket names the policy standard. Keep the policy id "
+                    "and blocker together because the final board packet may only repeat "
+                    "part of that chain."
+                )
+            ),
             "The final evidence list has five source documents: alias registry, current handoff, active ticket, policy, and final risk memo.",
             "The final risk memo is often filed under the vendor alias, ticket id, or policy id rather than the public project name.",
             "Several older tickets can look authoritative but were copied from earlier planning packets.",
@@ -569,6 +646,12 @@ class CorpusTrailWorld(WorldGenerator):
             "_compact_gold_chars": compact_chars,
             "_append_only_margin": round(raw_gold_chars / params["cap"], 2),
             "_stale_doc_ids": stale_doc_ids,
+            "_route_terms": {
+                "internal_code": internal_code,
+                "vendor_alias": vendor_alias,
+                "ticket_id": ticket_id,
+                "policy_id": policy_id,
+            },
         }
 
     def generate_query(
@@ -616,7 +699,6 @@ class CorpusTrailWorld(WorldGenerator):
                 for key in (
                     "project",
                     "internal_code",
-                    "decision",
                     "evidence",
                 )
             }
@@ -627,7 +709,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "intake note. Use search_docs(query, limit=6) and read_doc(doc_id) "
                 "to inspect the corpus. Search results are snippets only; read the "
                 "source documents you rely on. Return exactly one JSON object with "
-                "keys project, internal_code, decision, evidence. "
+                "keys project, internal_code, evidence. "
                 "evidence must be the ordered list of five document ids supporting "
                 "identity, owner/deadline, blocker, policy, and the final risk memo. "
                 "The policy is not a substitute for the final risk memo evidence "

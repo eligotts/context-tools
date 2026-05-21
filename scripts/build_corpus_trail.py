@@ -29,12 +29,10 @@ OUT_DIR = HERE / "my_data"
 TRAIN_SIZE = 1000
 EVAL_SIZE = 120
 
-# Frontier mix with a small on-ramp for cr=true. d0 remains available for
-# targeted smoke tests, but it is excluded from the default generated corpus
-# datasets because it can be too easy to solve from document roles alone.
-# Most mass stays on d2+ where delayed owner/policy synthesis creates memory
-# pressure.
-DIFFICULTY_MIX = [(1, 0.13), (2, 0.57), (3, 0.24), (4, 0.06)]
+# Frontier mix with a real on-ramp for cr=true. d0/d1 are scaffold tiers that
+# teach the corpus tool workflow before d2+ applies the neutral-document route
+# and context-pressure shape.
+DIFFICULTY_MIX = [(0, 0.10), (1, 0.25), (2, 0.45), (3, 0.15), (4, 0.05)]
 
 
 def _counts(n: int) -> dict[int, int]:
@@ -77,6 +75,10 @@ def _tokens(text: str) -> list[str]:
     ]
 
 
+def _token_counts(text: str) -> Counter:
+    return Counter(_tokens(text))
+
+
 def _render_doc(doc: dict) -> str:
     return (
         f"Document {doc['id']}\n"
@@ -89,20 +91,34 @@ def _render_doc(doc: dict) -> str:
 
 def _search(docs: dict, query: str, limit: int = 6) -> list[str]:
     toks = _tokens(query)
+    query_text = str(query).lower().strip()
     hits = []
     for doc_id, doc in docs.items():
-        title = str(doc.get("title", "")).lower()
-        body = str(doc.get("body", "")).lower()
-        keywords = " ".join(str(k).lower() for k in doc.get("keywords", []))
+        title_raw = str(doc.get("title", "")).lower()
+        body_raw = str(doc.get("body", "")).lower()
+        keywords_raw = " ".join(str(k).lower() for k in doc.get("keywords", []))
+        title_tokens = _token_counts(doc.get("title", ""))
+        body_tokens = _token_counts(doc.get("body", ""))
+        keyword_tokens = _token_counts(" ".join(str(k) for k in doc.get("keywords", [])))
+        id_tokens = _token_counts(doc_id)
         score = 0
-        for tok in toks:
-            if tok in doc_id.lower():
+        if query_text:
+            if query_text in str(doc_id).lower():
+                score += 12
+            if query_text in title_raw:
+                score += 10
+            if query_text in keywords_raw:
                 score += 8
-            if tok in title:
+            if query_text in body_raw:
                 score += 6
-            if tok in keywords:
+        for tok in toks:
+            if tok in id_tokens:
+                score += 8
+            if tok in title_tokens:
+                score += 6
+            if tok in keyword_tokens:
                 score += 5
-            score += min(4, body.count(tok))
+            score += min(4, body_tokens.get(tok, 0))
         if score:
             hits.append((score, str(doc.get("date", "")), doc_id))
     hits.sort(key=lambda item: (-item[0], item[1], item[2]))
@@ -144,12 +160,28 @@ def validate(rows: list) -> None:
             (evidence[3], policy_match.group(0)),
             (evidence[4], f"{ticket_match.group(0)} {policy_match.group(0)}"),
         ]
+        route_terms = state.get("_route_terms", {})
+        if state.get("_difficulty", 0) >= 2 and route_terms:
+            code = str(route_terms.get("internal_code") or full_answer["internal_code"])
+            ticket = str(route_terms.get("ticket_id") or ticket_match.group(0))
+            policy = str(route_terms.get("policy_id") or policy_match.group(0))
+            route_checks = [
+                (evidence[1], code),
+                (evidence[2], code),
+                (evidence[2], ticket),
+                (evidence[4], ticket),
+                (evidence[3], policy),
+                (evidence[4], policy),
+            ]
+            for gold, query in route_checks:
+                if gold not in _search(docs, query, 6):
+                    failures.append((ex.example_id, "route term unreachable", gold, query))
+                    break
         if state.get("_difficulty") == 0 and answer != evidence:
             failures.append((ex.example_id, "d0 expected answer should be evidence list"))
         if state.get("_difficulty") == 1 and set(answer) != {
             "project",
             "internal_code",
-            "decision",
             "evidence",
         }:
             failures.append((ex.example_id, "d1 compact answer schema changed"))
@@ -166,7 +198,21 @@ def validate(rows: list) -> None:
             if gold not in _search(docs, query, 6):
                 failures.append((ex.example_id, "unreachable", gold, query))
                 break
-        if state.get("_append_only_margin", 0) < 2.0:
+        if state.get("_difficulty", 0) >= 2:
+            initial_hits = _search(docs, full_answer["project"], 6)
+            initial_gold_hits = [doc_id for doc_id in initial_hits if doc_id in evidence]
+            if evidence[0] not in initial_hits:
+                failures.append((ex.example_id, "initial project search misses identity"))
+            if len(initial_gold_hits) > 2:
+                failures.append(
+                    (
+                        ex.example_id,
+                        "initial project search reveals too much gold evidence",
+                        initial_gold_hits,
+                    )
+                )
+        min_margin = 1.2 if state.get("_difficulty", 0) == 0 else 2.0
+        if state.get("_append_only_margin", 0) < min_margin:
             failures.append((ex.example_id, "weak append-only margin"))
         cap = int(state.get("max_context_chars") or 1)
         if state.get("_compact_gold_chars", cap) > 0.65 * cap:

@@ -71,35 +71,61 @@ In standard mode this value caps rendered REPL output, not the model-owned
 hard because `read_doc(...)` output is clipped even though full conversation
 history is available.
 
-Current calibrated `corpus_trail` recipe, as of 2026-05-18:
+Current calibrated `corpus_trail` recipe, as of 2026-05-20:
 
 - train/eval files: `my_data/train_corpus_trail.jsonl` and
   `my_data/eval_corpus_trail.jsonl`
-- mix: d1 13%, d2 57%, d3 24%, d4 6%; d0 is excluded from
-  default corpus data because the five-doc version was too easy to solve from
-  document roles alone
-- d2 is the bridge tier: all five evidence documents are still required, but
-  the final schema is `project, internal_code, owner, deadline, decision,
-  evidence`
-- d3/d4 use the full risk brief schema with blocker included
-- per-example caps: d1 1050, d2 1650, d3 1750, d4 1850
+- standalone corpus mix: d0 10%, d1 25%, d2 45%, d3 15%, d4 5%
+- d0 is a deliberately easy ordered-evidence-list scaffold with no distractors,
+  public doc ids/titles, and cap 2200. It is allowed to be mostly role-driven.
+- d1 is the bridge tier: one stale/distractor layer, public doc ids/titles,
+  exact JSON object `project, internal_code, evidence`, and cap 1500. It should
+  train routing through ticket/policy searches without requiring scalar decision
+  extraction yet.
+- d2 is the first real corpus-brief tier: neutral doc ids/titles, answer schema
+  `project, internal_code, owner, deadline, decision, evidence`, and cap 1650.
+- d3/d4 use the full risk brief schema with blocker included and harder neutral
+  distractors; caps 1750/1850.
 - `search_docs(...)` snippets are locator-only. They should identify candidate
   documents but not expose answer-bearing source fields or evidence chains.
 - final risk memos must not include explicit evidence-order or evidence
   cross-reference blocks; the model should discover the chain by reading the
   relevant source documents.
-- measured anchors on an 8-example slice:
-  base `Qwen/Qwen3.5-35B-A3B`, `cr=false`, `-r 4`: pass@1 0.969, pass@4 1.0
+- latest anchors after the d0/d1 on-ramp rebuild:
+  base `Qwen/Qwen3.5-35B-A3B`, `cr=false`, `-n 6 -r 3` on corpus eval:
+  pass@1 0.833, pass@2 0.944; d1 6/6 and d2 8/9, with misses concentrated
+  in d3.
   checkpoint `Qwen/Qwen3.5-35B-A3B:or87qviuv7jbhd5i84amqofj`, `cr=true`,
-  `-r 8`: pass@1 0.422, pass@8 1.0
+  d0 probe `-n 2 -r 4`: pass@1 0.625, pass@4 1.0.
+  checkpoint `cr=true`, d1 probe `-n 2 -r 4`: pass@1 0.25, pass@4 0.5.
+  Earlier d2 probes stayed near zero for this checkpoint, so d2+ is still the
+  actual frontier rather than the on-ramp.
 
-In the calibrated checkpoint run, successes had much less raw appending and
-truncation than failures: mean truncation about 3.3 vs 8.5, append count about
-10.4 vs 25.8, and final manifest chars about 12.2k vs 31.0k. This is the
-desired pressure: the task is not impossible, but raw append-heavy traces lose
-state and fail.
+Trace lesson from the latest on-ramp rebuild: when cr=true is zero even on
+d0/d1, first check whether bridge tiers are asking for too many scalar fields.
+The old d1 required `decision`; rollouts often found the correct evidence ids
+but lost/mis-extracted `decision` or confused ticket id with internal code after
+raw appending. Dropping d1 to `project, internal_code, evidence` made it
+reachable while preserving d2 as the scalar-synthesis frontier.
 
-Current default training recipe, as of 2026-05-19:
+Do not "improve" d1 by adding `owner, deadline` without re-evaluating. A
+targeted checkpoint probe on that variant went back to 0/8: the model appended
+full docs, hit truncation, and selected stale/historical blocker-policy docs.
+Keep owner/deadline extraction in d2, not d1, unless a future checkpoint can
+solve the simpler bridge reliably.
+
+Also do not add only `owner` to d1 as an apparently smaller compromise without
+rechecking. A 2026-05-20 checkpoint probe on that owner-only d1 variant made the
+d1 bridge group 0/4 under `cr=true`; the single pass in the two-example probe
+came from the d2 group, not d1. Base `cr=false` still solved it, but it removed
+the intended on-ramp signal for the trained checkpoint.
+
+For non-neutral d0/d1 distractors, do not mention the current project or current
+internal code in "not this project" prose. That makes broad project searches
+retrieve unrelated docs for the wrong reason and causes failures that are about
+retrieval noise rather than context management.
+
+Current default training recipe, as of 2026-05-20:
 
 - default files: `my_data/train_context_mix.jsonl` and
   `my_data/eval_context_mix.jsonl`
@@ -108,13 +134,15 @@ Current default training recipe, as of 2026-05-19:
 - train/eval sizes: 8000 / 800 rows
 - family mix: 60% `adaptive_cursor`, 40% `corpus_trail`
 - adaptive-cursor difficulty mix: d0 12%, d1 23%, d2 35%, d3 22%, d4 8%
-- corpus-trail difficulty mix: d0 3%, d1 22%, d2 52%, d3 18%, d4 5%
+- corpus-trail difficulty mix: d0 12%, d1 30%, d2 40%, d3 14%, d4 4%
 - keep `max_turns=15` and `context_rewrite=True` defaults
 - this is the from-scratch recipe. Adaptive cursor is the on-ramp and dominant
   early signal, while corpus trail introduces realistic search/synthesis once
   zero-gradient filtering starts admitting solvable document tasks.
-- d0 is present in both families for startup coverage, but corpus d0 stays tiny
-  because larger mass there can revive the easy document-role shortcut.
+- corpus d0/d1 are intentionally more prominent than in the earlier recipe
+  because the deployed checkpoint had zero reward on d1/d2 without a clearer
+  bridge. d0/d1 should provide early variance; d2+ should provide the real
+  pressure once filtering admits it.
 
 Then run the trained checkpoint with `context_rewrite=true`:
 

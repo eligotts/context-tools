@@ -9,25 +9,25 @@
     "5": 1104,
     "6": 1680,
     "7": 1056,
-    "8": 96,
-    "9": 1088,
-    "10": 1664,
-    "11": 576,
-    "12": 160
+    "8": 384,
+    "9": 1344,
+    "10": 1280,
+    "11": 448,
+    "12": 128
   },
   "difficulty_distribution": {
-    "0": 672,
-    "1": 1808,
-    "2": 3344,
-    "3": 1632,
-    "4": 544
+    "0": 960,
+    "1": 2064,
+    "2": 2960,
+    "3": 1504,
+    "4": 512
   },
   "query_template_distribution": {
     "cursor_checkpoint_audit": 4800,
-    "handoff_risk_brief": 1664,
-    "compact_risk_brief": 704,
-    "project_risk_brief": 736,
-    "evidence_trail": 96
+    "handoff_risk_brief": 1280,
+    "compact_risk_brief": 960,
+    "project_risk_brief": 576,
+    "evidence_trail": 384
   },
   "mix": {
     "families": {
@@ -35,11 +35,11 @@
       "corpus_trail": 0.4
     },
     "corpus_trail_difficulty_mix": {
-      "0": 0.03,
-      "1": 0.22,
-      "2": 0.52,
-      "3": 0.18,
-      "4": 0.05
+      "0": 0.12,
+      "1": 0.3,
+      "2": 0.4,
+      "3": 0.14,
+      "4": 0.04
     },
     "adaptive_cursor_difficulty_mix": {
       "0": 0.12,
@@ -57,11 +57,11 @@
         "4": 384
       },
       "corpus_trail": {
-        "0": 96,
-        "1": 704,
-        "2": 1664,
-        "3": 576,
-        "4": 160
+        "0": 384,
+        "1": 960,
+        "2": 1280,
+        "3": 448,
+        "4": 128
       }
     }
   }

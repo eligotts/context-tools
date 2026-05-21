@@ -411,6 +411,12 @@ def _corpus_trail_tokens(text):
         if len(t) >= 2 and t not in {"the", "and", "for", "with", "from"}
     ]
 
+def _corpus_trail_token_counts(text):
+    counts = {}
+    for tok in _corpus_trail_tokens(text):
+        counts[tok] = counts.get(tok, 0) + 1
+    return counts
+
 def _corpus_trail_render(doc):
     keywords = ", ".join(doc.get('keywords', []))
     return (
@@ -427,14 +433,14 @@ def _corpus_trail_snippet(doc, tokens):
     body = str(doc.get('body', ''))
     keywords = " ".join(str(k) for k in doc.get('keywords', []))
     haystacks = (
-        ('id', doc_id.lower()),
-        ('title', title.lower()),
-        ('metadata', keywords.lower()),
-        ('body', body.lower()),
+        ('id', _corpus_trail_token_counts(doc_id)),
+        ('title', _corpus_trail_token_counts(title)),
+        ('metadata', _corpus_trail_token_counts(keywords)),
+        ('body', _corpus_trail_token_counts(body)),
     )
     matched_in = []
-    for label, text in haystacks:
-        if any(tok in text for tok in tokens):
+    for label, token_counts in haystacks:
+        if any(tok in token_counts for tok in tokens):
             matched_in.append(label)
     title_lower = title.lower()
     doc_lower = doc_id.lower()
@@ -472,6 +478,7 @@ def search_docs(query, limit=6):
     \"\"\"Search corpus documents. Returns up to `limit` dicts with id, title,
     date, and a short snippet. Snippets are not source-of-record; call
     read_doc(doc_id) for documents you rely on.\"\"\"
+    query_text = str(query).lower().strip()
     tokens = _corpus_trail_tokens(query)
     if not tokens:
         return []
@@ -482,18 +489,31 @@ def search_docs(query, limit=6):
     limit = max(1, min(10, limit))
     hits = []
     for doc_id, doc in _CORPUS_TRAIL_DOCS.items():
-        title = str(doc.get('title', '')).lower()
-        body = str(doc.get('body', '')).lower()
-        keywords = " ".join(str(k).lower() for k in doc.get('keywords', []))
+        title_raw = str(doc.get('title', '')).lower()
+        body_raw = str(doc.get('body', '')).lower()
+        keywords_raw = " ".join(str(k).lower() for k in doc.get('keywords', []))
+        title_tokens = _corpus_trail_token_counts(doc.get('title', ''))
+        body_tokens = _corpus_trail_token_counts(doc.get('body', ''))
+        keyword_tokens = _corpus_trail_token_counts(" ".join(str(k) for k in doc.get('keywords', [])))
+        id_tokens = _corpus_trail_token_counts(doc_id)
         score = 0
-        for tok in tokens:
-            if tok in doc_id.lower():
+        if query_text:
+            if query_text in str(doc_id).lower():
+                score += 12
+            if query_text in title_raw:
+                score += 10
+            if query_text in keywords_raw:
                 score += 8
-            if tok in title:
+            if query_text in body_raw:
                 score += 6
-            if tok in keywords:
+        for tok in tokens:
+            if tok in id_tokens:
+                score += 8
+            if tok in title_tokens:
+                score += 6
+            if tok in keyword_tokens:
                 score += 5
-            score += min(4, body.count(tok))
+            score += min(4, body_tokens.get(tok, 0))
         if score:
             hits.append((score, str(doc.get('date', '')), doc_id, doc))
     hits.sort(key=lambda item: (-item[0], item[1], item[2]))
@@ -2482,8 +2502,8 @@ def load_environment(
             a normal tool response.
     """
     here = Path(__file__).parent
-    # Default training set: 75% corpus_trail research tasks plus 25% hard
-    # adaptive_cursor ledger tasks. Built by ``scripts/build_context_mix.py``.
+    # Default training set: 60% adaptive_cursor ledger tasks plus 40%
+    # corpus_trail research tasks. Built by ``scripts/build_context_mix.py``.
     if dataset_path is None:
         dataset_path = here / "my_data" / "train_context_mix.jsonl"
     if eval_path is None:
