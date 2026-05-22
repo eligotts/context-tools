@@ -23,10 +23,10 @@ from __future__ import annotations
 import json
 import random
 import re
-import string
 from typing import Any
 
 from .base import QueryTemplate, TrainingExample, WorldGenerator
+from .natural_ids import NaturalIdBank
 
 
 CORPUS_TRAIL_TEMPLATES = [
@@ -95,14 +95,25 @@ def _date(day: int) -> str:
     return f"2026-06-{day:02d}"
 
 
-def _code(rng: random.Random) -> str:
-    letters = "".join(rng.choice(string.ascii_uppercase) for _ in range(2))
-    return f"{letters}-{rng.randint(100, 999)}"
+def _code(id_bank: NaturalIdBank) -> str:
+    return id_bank.fresh(words=2)
 
 
-def _doc_id(prefix: str, used: set[str], rng: random.Random) -> str:
+def _related_code(id_bank: NaturalIdBank, code: str) -> str:
+    """Create a neutral near-miss code sharing one word with ``code``."""
+    left = code.split("-", 1)[0]
+    for _ in range(1000):
+        right = id_bank.fresh(words=2).split("-")[-1]
+        candidate = f"{left}-{right}"
+        if candidate not in id_bank.used:
+            id_bank.used.add(candidate)
+            return candidate
+    return id_bank.fresh(words=2)
+
+
+def _doc_id(used: set[str], id_bank: NaturalIdBank) -> str:
     while True:
-        candidate = f"{prefix}_{rng.randint(1, 999):03d}"
+        candidate = id_bank.fresh(words=2)
         if candidate not in used:
             used.add(candidate)
             return candidate
@@ -221,9 +232,10 @@ class CorpusTrailWorld(WorldGenerator):
             },
         }[difficulty]
 
+        id_bank = NaturalIdBank(rng)
         used_doc_ids: set[str] = set()
         project = _sample_project(rng)
-        internal_code = _code(rng)
+        internal_code = _code(id_bank)
         vendor_alias = rng.choice(VENDORS)
         owner = rng.choice(OWNERS)
         old_owner = rng.choice([o for o in OWNERS if o != owner])
@@ -243,8 +255,8 @@ class CorpusTrailWorld(WorldGenerator):
         old_deadline_day = max(2, deadline_day - rng.randint(3, 8))
         deadline = _date(deadline_day)
         old_deadline = _date(old_deadline_day)
-        policy_id = f"POL-{rng.randint(40, 89)}"
-        ticket_id = f"TCK-{rng.randint(1000, 9999)}"
+        policy_id = id_bank.fresh(words=2)
+        ticket_id = id_bank.fresh(words=2)
         structured_sources = difficulty <= 2
         neutral_surface = difficulty >= 2
 
@@ -257,7 +269,7 @@ class CorpusTrailWorld(WorldGenerator):
         docs: dict[str, dict[str, Any]] = {}
 
         def add_doc(prefix: str, title: str, date: str, body: str, keywords: list[str], *, target: int | None = None) -> str:
-            doc_id = _doc_id("doc" if neutral_surface else prefix, used_doc_ids, rng)
+            doc_id = _doc_id(used_doc_ids, id_bank)
             docs[doc_id] = {
                 "id": doc_id,
                 "title": title,
@@ -497,7 +509,7 @@ class CorpusTrailWorld(WorldGenerator):
         # Distractors: other projects, stale updates, and near collisions.
         for _ in range(params["distractors"]):
             other_project = _sample_project(rng)
-            other_code = _code(rng)
+            other_code = _code(id_bank)
             other_vendor = rng.choice(VENDORS)
             other_owner = rng.choice(OWNERS)
             other_blocker, other_decision = rng.choice(BLOCKERS)
@@ -505,7 +517,7 @@ class CorpusTrailWorld(WorldGenerator):
             if rng.random() < params["near_miss_rate"]:
                 # Near-miss docs share one target token but point elsewhere.
                 other_vendor = vendor_alias if rng.random() < 0.5 else other_vendor
-                other_code = internal_code[:2] + "-" + str(rng.randint(100, 999))
+                other_code = _related_code(id_bank, internal_code)
             distractor_title = rng.choice([
                 f"{kind.title()} note for {other_project}",
                 f"{other_code} {kind} update",
@@ -514,9 +526,9 @@ class CorpusTrailWorld(WorldGenerator):
             if neutral_surface:
                 distractor_title = rng.choice([
                     f"Reference note {other_code}",
-                    f"Vendor issue packet {rng.choice([ticket_id, f'TCK-{rng.randint(1000, 9999)}'])}",
+                    f"Vendor issue packet {rng.choice([ticket_id, id_bank.fresh(words=2)])}",
                     f"Board packet {other_vendor}",
-                    f"Decision standard POL-{rng.randint(40, 89)}",
+                    f"Decision standard {id_bank.fresh(words=2)}",
                 ])
             if neutral_surface:
                 body = (
@@ -575,7 +587,7 @@ class CorpusTrailWorld(WorldGenerator):
         for _ in range(params["briefing_noise"]):
             other_project = _sample_project(rng)
             briefing_lines.append(
-                f"Noise note: {other_project} has unrelated code {_code(rng)} "
+                f"Noise note: {other_project} has unrelated code {_code(id_bank)} "
                 f"and owner {rng.choice(OWNERS)}."
             )
         briefing_doc = "\n".join(briefing_lines)

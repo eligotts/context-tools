@@ -136,9 +136,13 @@ def validate(rows: list) -> None:
         policy_text = _render_doc(docs[evidence[3]])
         ticket_text = _render_doc(docs[evidence[2]])
         risk_text = _render_doc(docs[evidence[4]])
-        policy_match = re.search(r"POL-\d+", policy_text)
-        ticket_match = re.search(r"TCK-\d+", ticket_text)
-        if not policy_match or not ticket_match:
+        route_terms = state.get("_route_terms", {})
+        policy_ref = str(route_terms.get("policy_id") or "")
+        ticket_ref = str(route_terms.get("ticket_id") or "")
+        if not policy_ref or not ticket_ref:
+            failures.append((ex.example_id, "missing policy/ticket route terms"))
+            continue
+        if policy_ref not in policy_text or ticket_ref not in ticket_text:
             failures.append((ex.example_id, "missing policy/ticket id"))
             continue
         answer_leak_markers = (
@@ -157,14 +161,13 @@ def validate(rows: list) -> None:
             (evidence[0], full_answer["project"]),
             (evidence[1], full_answer["internal_code"]),
             (evidence[2], f"{full_answer['internal_code']} {full_answer['blocker']}"),
-            (evidence[3], policy_match.group(0)),
-            (evidence[4], f"{ticket_match.group(0)} {policy_match.group(0)}"),
+            (evidence[3], policy_ref),
+            (evidence[4], f"{ticket_ref} {policy_ref}"),
         ]
-        route_terms = state.get("_route_terms", {})
         if state.get("_difficulty", 0) >= 2 and route_terms:
             code = str(route_terms.get("internal_code") or full_answer["internal_code"])
-            ticket = str(route_terms.get("ticket_id") or ticket_match.group(0))
-            policy = str(route_terms.get("policy_id") or policy_match.group(0))
+            ticket = ticket_ref
+            policy = policy_ref
             route_checks = [
                 (evidence[1], code),
                 (evidence[2], code),

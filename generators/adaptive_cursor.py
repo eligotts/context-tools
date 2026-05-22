@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import json
 import random
-import string
 from typing import Any
 
 from .base import QueryTemplate, TrainingExample, WorldGenerator
+from .natural_ids import NaturalIdBank
 
 
 ACTORS = [
@@ -51,24 +51,12 @@ ADAPTIVE_CURSOR_TEMPLATES = [
 ]
 
 
-def _rand_id(rng: random.Random, prefix: str, n: int = 5) -> str:
-    alphabet = string.ascii_uppercase + string.digits
-    return prefix + "".join(rng.choice(alphabet) for _ in range(n))
+def _object_ids(id_bank: NaturalIdBank, n: int) -> list[str]:
+    return sorted(id_bank.fresh(words=2) for _ in range(n))
 
 
-def _object_ids(rng: random.Random, n: int) -> list[str]:
-    ids: set[str] = set()
-    while len(ids) < n:
-        ids.add("o" + "".join(rng.choice(string.ascii_lowercase + string.digits) for _ in range(3)))
-    return sorted(ids)
-
-
-def _new_handle(rng: random.Random, used: set[str]) -> str:
-    while True:
-        h = _rand_id(rng, "H")
-        if h not in used:
-            used.add(h)
-            return h
+def _new_handle(id_bank: NaturalIdBank) -> str:
+    return id_bank.fresh(words=2)
 
 
 class AdaptiveCursorWorld(WorldGenerator):
@@ -115,9 +103,10 @@ class AdaptiveCursorWorld(WorldGenerator):
 
         actors = sorted(rng.sample(ACTORS, n_actors))
         locations = sorted(rng.sample(LOCATIONS, min(len(LOCATIONS), max(4, n_actors))))
-        objects = _object_ids(rng, n_objects)
-        used_handles = {"START"}
-        handles = ["START"] + [_new_handle(rng, used_handles) for _ in range(n_pages - 1)]
+        id_bank = NaturalIdBank(rng)
+        objects = _object_ids(id_bank, n_objects)
+        start_handle = id_bank.fresh(words=2)
+        handles = [start_handle] + [_new_handle(id_bank) for _ in range(n_pages - 1)]
         checkpoint_pages = sorted(rng.sample(range(1, n_pages + 1), n_checkpoints))
         checkpoint_pages[-1] = n_pages
         checkpoint_pages = sorted(set(checkpoint_pages))
@@ -204,7 +193,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                     actors=actors,
                     objects=objects,
                     rng=rng,
-                    used_handles=used_handles,
+                    id_bank=id_bank,
                 )
             text = self._render_page(
                 page_number=i + 1,
@@ -223,7 +212,7 @@ class AdaptiveCursorWorld(WorldGenerator):
 
         return {
             "pages": pages,
-            "start_handle": "START",
+            "start_handle": start_handle,
             "objects": objects,
             "actors": actors,
             "locations": locations,
@@ -412,10 +401,10 @@ class AdaptiveCursorWorld(WorldGenerator):
         actors: list[str],
         objects: list[str],
         rng: random.Random,
-        used_handles: set[str],
+        id_bank: NaturalIdBank,
     ) -> str:
         levels: list[tuple[str, str]] = [
-            (_new_handle(rng, used_handles), _new_handle(rng, used_handles))
+            (_new_handle(id_bank), _new_handle(id_bank))
             for _ in range(start_from_index, n_pages)
         ]
         for offset, page_index in enumerate(range(start_from_index, n_pages)):

@@ -771,7 +771,7 @@ You begin with ``START_HANDLE``. Call ``observe(START_HANDLE)`` to get the first
 page string. Each page contains ledger facts plus, unless it is terminal, a
 route rule and two candidate tabs. The correct next handle is the tab whose
 actor label matches the route rule after you interpret the page and update the
-ledger state. Handles are random strings and are not enumerable.
+ledger state. Handles are opaque word ids and are not enumerable.
 
 ``observe(handle)`` is an ordinary Python function: it returns a string, does
 not mutate ``context_window``, and does not stop the code block. In
