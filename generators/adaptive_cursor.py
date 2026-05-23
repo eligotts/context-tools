@@ -41,7 +41,7 @@ ADAPTIVE_CURSOR_TEMPLATES = [
     QueryTemplate(
         name="cursor_checkpoint_audit",
         description=(
-            "Follow opaque observation cursors and audit checkpoint transfer "
+            "Follow opaque observation cursors and audit marked transfer "
             "leaders plus live ownership counts."
         ),
         min_turns=4,
@@ -69,7 +69,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         return (
             "adaptive_cursor world: call observe(handle) to return exactly one "
             "cursor page string. Maintain compact state and submit "
-            "the final JSON audit rows."
+            "the final structured audit rows."
         )
 
     def generate_state(
@@ -110,6 +110,10 @@ class AdaptiveCursorWorld(WorldGenerator):
         checkpoint_pages = sorted(rng.sample(range(1, n_pages + 1), n_checkpoints))
         checkpoint_pages[-1] = n_pages
         checkpoint_pages = sorted(set(checkpoint_pages))
+        checkpoint_labels = {
+            page_number: id_bank.fresh(words=2)
+            for page_number in checkpoint_pages
+        }
 
         pages_events: list[list[dict[str, Any]]] = []
         owners: dict[str, str | None] = {o: None for o in objects}
@@ -172,6 +176,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         answer_rows, states_after, checkpoint_rows = self._simulate(
             pages_events,
             checkpoint_pages,
+            checkpoint_labels,
             objects,
             actors,
         )
@@ -190,6 +195,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                     start_from_index=i + 1,
                     n_pages=n_pages,
                     checkpoint_pages=checkpoint_pages,
+                    checkpoint_labels=checkpoint_labels,
                     actors=actors,
                     objects=objects,
                     rng=rng,
@@ -201,6 +207,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                 handle=handle,
                 events=pages_events[i],
                 checkpoint=(i + 1) if (i + 1) in checkpoint_pages else None,
+                checkpoint_label=checkpoint_labels.get(i + 1),
                 next_handle=next_handle,
                 shadow_handle=shadow_start,
                 state_after=states_after[i],
@@ -217,6 +224,7 @@ class AdaptiveCursorWorld(WorldGenerator):
             "actors": actors,
             "locations": locations,
             "_checkpoint_pages": checkpoint_pages,
+            "_checkpoint_labels": checkpoint_labels,
             "_pages_events": pages_events,
             "_answer": answer_rows,
             "_difficulty": difficulty,
@@ -227,6 +235,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         self,
         pages_events: list[list[dict[str, Any]]],
         checkpoint_pages: list[int],
+        checkpoint_labels: dict[int, str],
         objects: list[str],
         actors: list[str],
     ) -> tuple[list[list[Any]], list[dict[str, Any]], dict[int, list[Any]]]:
@@ -260,7 +269,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                     1 for obj in objects
                     if exists.get(obj, False) and owners.get(obj) == actor
                 )
-                rows.append([f"CP{page_number}", actor, max_count, owned_count])
+                rows.append([checkpoint_labels[page_number], actor, max_count, owned_count])
                 checkpoint_rows[page_number] = rows[-1]
                 interval_counts = {a: 0 for a in actors}
             states_after.append({
@@ -278,6 +287,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         handle: str,
         events: list[dict[str, Any]],
         checkpoint: int | None,
+        checkpoint_label: str | None,
         next_handle: str | None,
         shadow_handle: str | None,
         state_after: dict[str, Any],
@@ -290,8 +300,8 @@ class AdaptiveCursorWorld(WorldGenerator):
         ]
         for e in events:
             lines.append(f"- {self._event_sentence(e, rng)}")
-        if checkpoint is not None:
-            lines.append(f"Checkpoint CP{checkpoint} closes here.")
+        if checkpoint is not None and checkpoint_label is not None:
+            lines.append(f"Audit mark {checkpoint_label} closes here.")
         if next_handle is None:
             lines.append("Terminal slip: no next tab.")
         else:
@@ -347,7 +357,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         if checkpoint_row is not None:
             actor = str(checkpoint_row[1])
             return (
-                "Route: use this checkpoint's winning actor.",
+                "Route: use this audit mark's winning actor.",
                 actor,
             )
         live = [
@@ -398,6 +408,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         start_from_index: int,
         n_pages: int,
         checkpoint_pages: list[int],
+        checkpoint_labels: dict[int, str],
         actors: list[str],
         objects: list[str],
         rng: random.Random,
@@ -417,6 +428,7 @@ class AdaptiveCursorWorld(WorldGenerator):
                         n_pages=n_pages,
                         handle=handle,
                         checkpoint=page_number if page_number in checkpoint_pages else None,
+                        checkpoint_label=checkpoint_labels.get(page_number),
                         next_pair=next_pair,
                         actors=actors,
                         objects=objects,
@@ -432,6 +444,7 @@ class AdaptiveCursorWorld(WorldGenerator):
         n_pages: int,
         handle: str,
         checkpoint: int | None,
+        checkpoint_label: str | None,
         next_pair: tuple[str, str] | None,
         actors: list[str],
         objects: list[str],
@@ -444,9 +457,9 @@ class AdaptiveCursorWorld(WorldGenerator):
             f"- {actor_a} reviewed `{obj}`; no holder change.",
             f"- {actor_b} copied a side receipt for `{obj}`.",
         ]
-        if checkpoint is not None:
+        if checkpoint is not None and checkpoint_label is not None:
             lines.append(
-                f"Checkpoint CP{checkpoint} closes here on this branch."
+                f"Audit mark {checkpoint_label} closes here on this branch."
             )
         if next_pair is None:
             lines.append("Terminal slip: this branch has no next tab.")
@@ -486,36 +499,38 @@ class AdaptiveCursorWorld(WorldGenerator):
     ) -> dict:
         answer = state["_answer"]
         n_pages = int(state.get("_actual_pages", len(state["pages"])))
-        cps = list(state["_checkpoint_pages"])
+        audit_marks = [
+            state["_checkpoint_labels"][page_number]
+            for page_number in state["_checkpoint_pages"]
+        ]
         query = (
-            "Follow the opaque cursor ledger. The Python variable START_HANDLE "
-            "is already seeded; call observe(START_HANDLE) without quotes to "
+            "Follow the opaque cursor ledger. The Python variable start_handle "
+            "is already seeded; call observe(start_handle) without quotes to "
             "return the first page string. Each nonterminal page gives a route "
             "rule and two candidate tabs; choose the tab by interpreting the "
             "page and your current ledger state, then call observe(handle) on "
             "that tab's handle. If you need to see a page or state next turn, "
             "write it to context_window yourself. Process every ledger entry in "
             "order, keeping context_window compact by overwriting stale raw "
-            "pages with durable state. At each checkpoint "
-            f"{[f'CP{x}' for x in cps]}, report [checkpoint, actor, "
-            "interval_transfer_count, owned_count_at_checkpoint], where the "
-            "checkpoint field is the exact string id with the CP prefix, such "
-            "as \"CP1\" or \"CP10\"; do not submit a bare number like 1 or 10. "
-            "The final answer must be a JSON-style list of rows like "
-            "[[\"CP1\", \"Alice\", 2, 1], ...]. The "
+            "pages with durable state. At each audit mark "
+            f"{audit_marks}, report [mark, actor, "
+            "interval_transfer_count, owned_count_at_mark], where the "
+            "mark field is the exact string id shown on the page. Do not "
+            "submit a bare page number. The final answer must be a structured "
+            "list of rows like [[\"silver-cove\", \"Alice\", 2, 1], ...]. The "
             "actor is the alphabetically earliest actor tied for the most "
-            "TRANSFER receipts since the previous checkpoint. "
+            "transfer receipts since the previous audit mark. "
             "interval_transfer_count is that winning actor's receipt count, "
             "not the total number of transfers in the interval. "
-            "owned_count_at_checkpoint is the number of live objects owned by "
-            "that same reported actor at the checkpoint, not the total number "
-            "of live objects. TRANSFER receipts are counted for the receiver "
+            "owned_count_at_mark is the number of live objects owned by "
+            "that same reported actor at the audit mark, not the total number "
+            "of live objects. Transfer receipts are counted for the receiver "
             "(the actor the object moves to), while created/opened/first-holder "
             "objects are not transfer receipts. Destroyed, closed, voided, or "
             "left-ledger objects are not live and count for nobody unless a "
             "later page creates/opens them again. Ownership and existence "
             "carry forward across pages; interval transfer counts reset after "
-            "each checkpoint. Submit JSON rows in checkpoint order after the "
+            "each audit mark. Submit rows in audit-mark order after the "
             "terminal page."
         )
         return {

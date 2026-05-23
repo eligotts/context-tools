@@ -10,10 +10,10 @@ final answer.
 The model sees only ordinary REPL tools:
 
 - ``search_docs(query, limit=6)`` returns matching ids with short snippets.
-- ``read_doc(doc_id)`` returns one full verbose document string.
-- ``BRIEFING_DOC`` is a long pre-seeded starting note.
+- ``read_doc(source_id)`` returns one full verbose document string.
+- ``briefing_note`` is a long pre-seeded starting note.
 
-The expected answer is exact JSON.  No process-level reward is needed for this
+The expected answer is an exact structured value.  No process-level reward is needed for this
 family; the existing non-adaptive rubric gives 1.0 only for a fully correct
 final answer.
 """
@@ -157,7 +157,7 @@ class CorpusTrailWorld(WorldGenerator):
     def get_system_prompt(self) -> str:
         return (
             "corpus_trail world: search and read a noisy document corpus, then "
-            "submit one exact JSON brief."
+            "submit one exact structured brief."
         )
 
     def generate_state(
@@ -646,8 +646,8 @@ class CorpusTrailWorld(WorldGenerator):
 
         return {
             "docs": docs,
-            "briefing_doc": briefing_doc,
-            "doc_ids": sorted(docs),
+            "briefing_note": briefing_doc,
+            "document_ids": sorted(docs),
             "max_context_chars": params["cap"],
             "search_snippet_chars": params["snippet_chars"],
             "_answer": answer,
@@ -696,13 +696,13 @@ class CorpusTrailWorld(WorldGenerator):
             query_template = "evidence_trail"
             query = (
                 f"Find the ordered evidence trail for project '{project}'. "
-                "The Python variable BRIEFING_DOC is already seeded with a long "
-                "intake note. Use search_docs(query, limit=6) and read_doc(doc_id) "
+                "The Python variable briefing_note is already seeded with a long "
+                "intake note. Use search_docs(query, limit=6) and read_doc(source_id) "
                 "to inspect the corpus. Search results are snippets only; read the "
-                "source documents you rely on. Return exactly one JSON list of "
+                "source documents you rely on. Return exactly one list of "
                 "five document ids, ordered as identity, owner/deadline, blocker, "
                 "policy, and final risk memo. The policy is not a substitute for "
-                "the final risk memo evidence source. Do not cite BRIEFING_DOC as "
+                "the final risk memo evidence source. Do not cite briefing_note as "
                 "evidence. Submit via submit_answer(value)."
             )
         elif difficulty == 1:
@@ -717,15 +717,15 @@ class CorpusTrailWorld(WorldGenerator):
             query_template = "compact_risk_brief"
             query = (
                 f"Prepare the compact current launch risk brief for project '{project}'. "
-                "The Python variable BRIEFING_DOC is already seeded with a long "
-                "intake note. Use search_docs(query, limit=6) and read_doc(doc_id) "
+                "The Python variable briefing_note is already seeded with a long "
+                "intake note. Use search_docs(query, limit=6) and read_doc(source_id) "
                 "to inspect the corpus. Search results are snippets only; read the "
-                "source documents you rely on. Return exactly one JSON object with "
+                "source documents you rely on. Return exactly one object with "
                 "keys project, internal_code, evidence. "
                 "evidence must be the ordered list of five document ids supporting "
                 "identity, owner/deadline, blocker, policy, and the final risk memo. "
                 "The policy is not a substitute for the final risk memo evidence "
-                "source. Do not cite BRIEFING_DOC as evidence. Submit via "
+                "source. Do not cite briefing_note as evidence. Submit via "
                 "submit_answer(value)."
             )
         elif difficulty == 2:
@@ -743,15 +743,15 @@ class CorpusTrailWorld(WorldGenerator):
             query_template = "handoff_risk_brief"
             query = (
                 f"Prepare the current handoff risk brief for project '{project}'. "
-                "The Python variable BRIEFING_DOC is already seeded with a long "
-                "intake note. Use search_docs(query, limit=6) and read_doc(doc_id) "
+                "The Python variable briefing_note is already seeded with a long "
+                "intake note. Use search_docs(query, limit=6) and read_doc(source_id) "
                 "to inspect the corpus. Search results are snippets only; read the "
-                "source documents you rely on. Return exactly one JSON object with "
+                "source documents you rely on. Return exactly one object with "
                 "keys project, internal_code, owner, deadline, decision, evidence. "
                 "evidence must be the ordered list of five document ids supporting "
                 "identity, owner/deadline, blocker ticket, policy, and the final "
                 "risk memo. The policy is not a substitute for the final risk memo "
-                "evidence source. Do not cite BRIEFING_DOC as evidence. Submit via "
+                "evidence source. Do not cite briefing_note as evidence. Submit via "
                 "submit_answer(value)."
             )
         else:
@@ -759,15 +759,15 @@ class CorpusTrailWorld(WorldGenerator):
             query_template = "project_risk_brief"
             query = (
                 f"Prepare the current launch risk brief for project '{project}'. "
-                "The Python variable BRIEFING_DOC is already seeded with a long "
-                "intake note. Use search_docs(query, limit=6) and read_doc(doc_id) "
+                "The Python variable briefing_note is already seeded with a long "
+                "intake note. Use search_docs(query, limit=6) and read_doc(source_id) "
                 "to inspect the corpus. Search results are snippets only; read the "
-                "source documents you rely on. Return exactly one JSON object with "
+                "source documents you rely on. Return exactly one object with "
                 "keys project, internal_code, owner, blocker, "
                 "deadline, decision, evidence. evidence must be the ordered list of "
                 "five document ids supporting identity, owner/deadline, blocker, "
                 "policy, and the final risk memo. The policy is not a substitute "
-                "for the final risk memo evidence source. Do not cite BRIEFING_DOC "
+                "for the final risk memo evidence source. Do not cite briefing_note "
                 "as evidence. Submit via submit_answer(value)."
             )
         return {

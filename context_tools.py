@@ -394,15 +394,15 @@ START = _world_state.get('start')
 N_NODES = len(_world_state.get('graph', {}))
 """,
     "corpus_trail": """
-_CORPUS_TRAIL_DOCS = dict(_world_state.get('docs', {}))
-BRIEFING_DOC = _world_state.get('briefing_doc', '')
-DOC_IDS = list(_world_state.get('doc_ids', sorted(_CORPUS_TRAIL_DOCS.keys())))
-DOC_COUNT = len(DOC_IDS)
+_corpus_trail_docs = dict(_world_state.get('docs', {}))
+briefing_note = _world_state.get('briefing_note', '')
+document_ids = list(_world_state.get('document_ids', sorted(_corpus_trail_docs.keys())))
+document_count = len(document_ids)
 try:
-    _CORPUS_TRAIL_SNIPPET_CHARS = int(_world_state.get('search_snippet_chars', 180) or 180)
+    _corpus_trail_snippet_chars = int(_world_state.get('search_snippet_chars', 180) or 180)
 except Exception:
-    _CORPUS_TRAIL_SNIPPET_CHARS = 180
-_CORPUS_TRAIL_SNIPPET_CHARS = max(60, min(220, _CORPUS_TRAIL_SNIPPET_CHARS))
+    _corpus_trail_snippet_chars = 180
+_corpus_trail_snippet_chars = max(60, min(220, _corpus_trail_snippet_chars))
 
 def _corpus_trail_tokens(text):
     import re as _re
@@ -428,12 +428,12 @@ def _corpus_trail_render(doc):
     )
 
 def _corpus_trail_snippet(doc, tokens):
-    doc_id = str(doc.get('id', ''))
+    source_id = str(doc.get('id', ''))
     title = str(doc.get('title', ''))
     body = str(doc.get('body', ''))
     keywords = " ".join(str(k) for k in doc.get('keywords', []))
     haystacks = (
-        ('id', _corpus_trail_token_counts(doc_id)),
+        ('id', _corpus_trail_token_counts(source_id)),
         ('title', _corpus_trail_token_counts(title)),
         ('metadata', _corpus_trail_token_counts(keywords)),
         ('body', _corpus_trail_token_counts(body)),
@@ -443,18 +443,7 @@ def _corpus_trail_snippet(doc, tokens):
         if any(tok in token_counts for tok in tokens):
             matched_in.append(label)
     title_lower = title.lower()
-    doc_lower = doc_id.lower()
-    if doc_lower.startswith('risk_'):
-        kind = 'risk memo'
-    elif doc_lower.startswith('memo_'):
-        kind = 'alias registry'
-    elif doc_lower.startswith('handoff_'):
-        kind = 'handoff note'
-    elif doc_lower.startswith('ticket_'):
-        kind = 'ticket note'
-    elif doc_lower.startswith('policy_'):
-        kind = 'policy note'
-    elif 'alias' in title_lower:
+    if 'alias' in title_lower:
         kind = 'alias registry'
     elif 'handoff' in title_lower:
         kind = 'handoff note'
@@ -464,20 +453,18 @@ def _corpus_trail_snippet(doc, tokens):
         kind = 'risk memo'
     elif 'ticket' in title_lower:
         kind = 'ticket note'
-    elif doc_lower.startswith('email_'):
-        kind = 'historical email'
     else:
         kind = 'corpus document'
     where = ', '.join(dict.fromkeys(matched_in)) if matched_in else 'corpus'
     return (
         f"Matched query terms in {where}; source kind: {kind}. "
-        f"Open with read_doc('{doc_id}') for source text."
+        f"Open with read_doc('{source_id}') for source text."
     )
 
 def search_docs(query, limit=6):
     \"\"\"Search corpus documents. Returns up to `limit` dicts with id, title,
     date, and a short snippet. Snippets are not source-of-record; call
-    read_doc(doc_id) for documents you rely on.\"\"\"
+    read_doc(source_id) for documents you rely on.\"\"\"
     query_text = str(query).lower().strip()
     tokens = _corpus_trail_tokens(query)
     if not tokens:
@@ -488,17 +475,17 @@ def search_docs(query, limit=6):
         limit = 6
     limit = max(1, min(10, limit))
     hits = []
-    for doc_id, doc in _CORPUS_TRAIL_DOCS.items():
+    for source_id, doc in _corpus_trail_docs.items():
         title_raw = str(doc.get('title', '')).lower()
         body_raw = str(doc.get('body', '')).lower()
         keywords_raw = " ".join(str(k).lower() for k in doc.get('keywords', []))
         title_tokens = _corpus_trail_token_counts(doc.get('title', ''))
         body_tokens = _corpus_trail_token_counts(doc.get('body', ''))
         keyword_tokens = _corpus_trail_token_counts(" ".join(str(k) for k in doc.get('keywords', [])))
-        id_tokens = _corpus_trail_token_counts(doc_id)
+        id_tokens = _corpus_trail_token_counts(source_id)
         score = 0
         if query_text:
-            if query_text in str(doc_id).lower():
+            if query_text in str(source_id).lower():
                 score += 12
             if query_text in title_raw:
                 score += 10
@@ -515,28 +502,27 @@ def search_docs(query, limit=6):
                 score += 5
             score += min(4, body_tokens.get(tok, 0))
         if score:
-            hits.append((score, str(doc.get('date', '')), doc_id, doc))
+            hits.append((score, str(doc.get('date', '')), source_id, doc))
     hits.sort(key=lambda item: (-item[0], item[1], item[2]))
     return [
         {
-            'id': doc_id,
-            'doc_id': doc_id,
+            'id': source_id,
             'title': doc.get('title', ''),
             'date': doc.get('date', ''),
             'snippet': _corpus_trail_snippet(doc, tokens),
         }
-        for _, _, doc_id, doc in hits[:limit]
+        for _, _, source_id, doc in hits[:limit]
     ]
 
-def read_doc(doc_id):
+def read_doc(source_id):
     \"\"\"Return the full text of one corpus document by id.\"\"\"
-    key = str(doc_id)
-    if key not in _CORPUS_TRAIL_DOCS:
+    key = str(source_id)
+    if key not in _corpus_trail_docs:
         raise KeyError(f"Unknown document id: {key!r}")
-    return _corpus_trail_render(_CORPUS_TRAIL_DOCS[key])
+    return _corpus_trail_render(_corpus_trail_docs[key])
 """,
     "adaptive_cursor": """
-START_HANDLE = _world_state.get('start_handle', 'START')
+start_handle = _world_state.get('start_handle', '')
 
 
 class _AdaptiveObserve:
@@ -573,8 +559,6 @@ class _AdaptiveObserve:
         pages = object.__getattribute__(self, '_AdaptiveObserve__pages')
         start = object.__getattribute__(self, '_AdaptiveObserve__start')
         key = str(handle)
-        if key == 'START_HANDLE':
-            key = str(start)
         if key not in pages:
             raise KeyError(f\"Unknown observation handle: {key!r}\")
         page = pages[key]
@@ -584,12 +568,12 @@ class _AdaptiveObserve:
         return text
 
 
-observe = _AdaptiveObserve(_world_state.get('pages', {}), START_HANDLE)
+observe = _AdaptiveObserve(_world_state.get('pages', {}), start_handle)
 
 # Do not leave the full cursor table in ordinary visible sandbox state. The
 # task should be progressed through observe(handle), not by dumping _world_state
 # or reading context.json.
-_world_state = {'start_handle': START_HANDLE}
+_world_state = {'start_handle': start_handle}
 for _adaptive_ctx_path_str in ('context.json', _os.path.join(_os.getcwd(), 'context.json'), '/rlm_fs/context.json'):
     try:
         _adaptive_ctx_path = _Path(_adaptive_ctx_path_str)
@@ -597,7 +581,7 @@ for _adaptive_ctx_path_str in ('context.json', _os.path.join(_os.getcwd(), 'cont
             with open(_adaptive_ctx_path, 'r') as _adaptive_f:
                 _adaptive_ctx = _json.load(_adaptive_f)
             if isinstance(_adaptive_ctx, dict) and isinstance(_adaptive_ctx.get('world_state'), dict):
-                _adaptive_ctx['world_state'] = {'start_handle': START_HANDLE}
+                _adaptive_ctx['world_state'] = {'start_handle': start_handle}
                 with open(_adaptive_ctx_path, 'w') as _adaptive_f:
                     _json.dump(_adaptive_ctx, _adaptive_f)
     except Exception:
@@ -629,7 +613,7 @@ _TOOL_SIGNATURES: dict[str, list[str]] = {
     ],
     "corpus_trail": [
         "- search_docs(query: str, limit: int = 6) -> list[dict] — search noisy corpus documents and return matching ids, titles, dates, and short snippets.",
-        "- read_doc(doc_id: str) -> str — return the full text of one corpus document.",
+        "- read_doc(source_id: str) -> str — return the full text of one corpus document.",
     ],
     "adaptive_cursor": [
         "- observe(handle: str) -> str — return the cursor page for an opaque handle. It does not mutate context_window; save whatever you need to context_window yourself.",
@@ -750,24 +734,24 @@ Submit the goal node's secret via ``submit_answer("<secret>")``.
 # Corpus trail format (corpus_trail only)
 
 You are doing a small research synthesis over a noisy document corpus.
-``BRIEFING_DOC`` is a long pre-seeded intake note. It is useful for starting
+``briefing_note`` is a long pre-seeded intake note. It is useful for starting
 clues, but it is not a citable final evidence source. Search results are only
-snippets; use ``read_doc(doc_id)`` for any source you rely on.
+snippets; use ``read_doc(source_id)`` for any source you rely on.
 
 Pre-seeded kernel variables (free; do NOT cost a tool call):
-  BRIEFING_DOC — long intake note with initial aliases and routing hints
-  DOC_IDS      — list of document ids
-  DOC_COUNT    — number of documents
+  briefing_note  — long intake note with initial aliases and routing hints
+  document_ids   — list of document ids
+  document_count — number of documents
 
-Submit the JSON value requested by the task via ``submit_answer(value)``.
-Some corpus_trail tasks ask for an ordered list; others ask for a JSON object
-with named keys. Do not cite ``BRIEFING_DOC`` as evidence.
+Submit the structured value requested by the task via ``submit_answer(value)``.
+Some corpus_trail tasks ask for an ordered list; others ask for an object
+with named keys. Do not cite ``briefing_note`` as evidence.
 """,
     "adaptive_cursor": """\
 
 # Adaptive cursor format (adaptive_cursor only)
 
-You begin with ``START_HANDLE``. Call ``observe(START_HANDLE)`` to get the first
+You begin with ``start_handle``. Call ``observe(start_handle)`` to get the first
 page string. Each page contains ledger facts plus, unless it is terminal, a
 route rule and two candidate tabs. The correct next handle is the tab whose
 actor label matches the route rule after you interpret the page and update the
@@ -786,19 +770,18 @@ short REPL-variable breadcrumb, then fetch the next page with
 ``page = observe(next_handle)`` and decide what part of it to place in
 ``context_window`` for the next turn.
 
-Submit the final JSON value via ``submit_answer(value)`` after processing the
+Submit the final structured value via ``submit_answer(value)`` after processing the
 terminal page.
 
-Checkpoint fields are intentionally actor-local:
-- The first field of every row must be the exact checkpoint string id with the
-  ``CP`` prefix, for example ``"CP1"`` or ``"CP10"``. Do not submit a bare
-  number such as ``1`` or ``10``. A valid row looks like
-  ``["CP1", "Alice", 2, 1]``.
+Audit mark fields are intentionally actor-local:
+- The first field of every row must be the exact audit mark string shown on
+  the page. Do not submit a bare page number. A valid row looks like
+  ``["silver-cove", "Alice", 2, 1]``.
 - ``interval_transfer_count`` is the winning actor's receipt count since the
-  previous checkpoint, not the total transfer count for the interval.
-- ``owned_count_at_checkpoint`` is the number of live objects owned by that
-  same reported actor at the checkpoint, not the total number of live objects.
-- A ``TRANSFER`` receipt is counted for the receiver. Created/opened/first-
+  previous audit mark, not the total transfer count for the interval.
+- ``owned_count_at_mark`` is the number of live objects owned by that same
+  reported actor at the audit mark, not the total number of live objects.
+- A transfer receipt is counted for the receiver. Created/opened/first-
   holder objects do not add transfer receipts.
 - Destroyed, closed, voided, and left-ledger objects are not live and count for
   nobody unless a later page creates/opens them again.
@@ -1028,7 +1011,7 @@ prompt and (b) a freshly-rendered user message.
 your code unless it is in `context_window` when the next turn renders. The
 rendered `context_window` is hard-truncated with no truncation marker and no
 hint that anything exists beyond the visible prefix. For reliable next-turn
-visibility, store JSON-serializable values; tuples/sets render back as lists,
+visibility, store plain serializable values; tuples/sets render back as lists,
 and arbitrary objects may render only as lossy repr strings. How you use it is
 entirely up to you.
 
@@ -1049,10 +1032,10 @@ closures over the world state for this rollout):
 # Submitting an answer
 
 When you have the final answer, call `submit_answer(value)` where `value` is
-the answer. For JSON-answer tasks, pass the corresponding Python list/dict.
+the answer. For structured-answer tasks, pass the corresponding Python list/dict.
 This terminates the rollout. Do not wrap with `\\boxed{{}}` — just pass it
 directly, e.g. `submit_answer(42)`, `submit_answer("t3x")`, or
-`submit_answer([["CP3", "Alice", 2, 1]])`.
+`submit_answer([["silver-cove", "Alice", 2, 1]])`.
 
 # Tips
 
@@ -1110,10 +1093,10 @@ closures over the world state for this rollout):
 # Submitting an answer
 
 When you have the final answer, call `submit_answer(value)` where `value` is
-the answer. For JSON-answer tasks, pass the corresponding Python list/dict.
+the answer. For structured-answer tasks, pass the corresponding Python list/dict.
 This terminates the rollout. Do not wrap with `\\boxed{{}}` — just pass it
 directly, e.g. `submit_answer(42)`, `submit_answer("t3x")`, or
-`submit_answer([["CP3", "Alice", 2, 1]])`.
+`submit_answer([["silver-cove", "Alice", 2, 1]])`.
 """
 
 
@@ -1387,9 +1370,9 @@ def _row_visible_in_text(row: tuple[str, str, int, int], text: str) -> bool:
     comma = f"{cp},{actor},{transfers},{owned}"
     if any(pat in text for pat in (json_compact, json_spaced, repr_single, colon, comma)):
         return True
-    # Let compact human manifests count too, e.g. "CP3 Gus 2 1". Keep the
-    # gaps short so raw page text with an unrelated checkpoint mention does
-    # not accidentally satisfy the row.
+    # Let compact human manifests count too, e.g. "silver-cove Gus 2 1". Keep
+    # the gaps short so raw page text with an unrelated mark mention does not
+    # accidentally satisfy the row.
     return bool(
         re.search(
             rf"\b{re.escape(cp)}\b.{{0,24}}\b{re.escape(actor)}\b"
