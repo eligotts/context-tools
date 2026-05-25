@@ -9,25 +9,25 @@
     "5": 1104,
     "6": 1680,
     "7": 1056,
-    "8": 384,
-    "9": 1344,
-    "10": 1280,
-    "11": 448,
-    "12": 128
+    "8": 640,
+    "9": 1504,
+    "10": 960,
+    "11": 384,
+    "12": 96
   },
   "difficulty_distribution": {
-    "0": 960,
-    "1": 2064,
-    "2": 2960,
-    "3": 1504,
-    "4": 512
+    "0": 1216,
+    "1": 2224,
+    "2": 2640,
+    "3": 1440,
+    "4": 480
   },
   "query_template_distribution": {
     "cursor_checkpoint_audit": 4800,
-    "handoff_risk_brief": 1280,
-    "compact_risk_brief": 960,
-    "project_risk_brief": 576,
-    "evidence_trail": 384
+    "compact_risk_brief": 1120,
+    "handoff_risk_brief": 960,
+    "evidence_trail": 640,
+    "project_risk_brief": 480
   },
   "mix": {
     "families": {
@@ -35,11 +35,11 @@
       "corpus_trail": 0.4
     },
     "corpus_trail_difficulty_mix": {
-      "0": 0.12,
-      "1": 0.3,
-      "2": 0.4,
-      "3": 0.14,
-      "4": 0.04
+      "0": 0.2,
+      "1": 0.35,
+      "2": 0.3,
+      "3": 0.12,
+      "4": 0.03
     },
     "adaptive_cursor_difficulty_mix": {
       "0": 0.12,
@@ -57,11 +57,11 @@
         "4": 384
       },
       "corpus_trail": {
-        "0": 384,
-        "1": 960,
-        "2": 1280,
-        "3": 448,
-        "4": 128
+        "0": 640,
+        "1": 1120,
+        "2": 960,
+        "3": 384,
+        "4": 96
       }
     }
   }

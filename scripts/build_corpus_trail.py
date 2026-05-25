@@ -32,7 +32,7 @@ EVAL_SIZE = 120
 # Frontier mix with a real on-ramp for cr=true. d0/d1 are scaffold tiers that
 # teach the corpus tool workflow before d2+ applies the neutral-document route
 # and context-pressure shape.
-DIFFICULTY_MIX = [(0, 0.10), (1, 0.25), (2, 0.45), (3, 0.15), (4, 0.05)]
+DIFFICULTY_MIX = [(0, 0.20), (1, 0.35), (2, 0.30), (3, 0.12), (4, 0.03)]
 
 
 def _counts(n: int) -> dict[int, int]:
@@ -102,31 +102,27 @@ def _search(docs: dict, query: str, limit: int = 6) -> list[str]:
     query_text = str(query).lower().strip()
     hits = []
     for doc_id, doc in docs.items():
-        title_raw = str(doc.get("title", "")).lower()
-        body_raw = str(doc.get("body", "")).lower()
-        keywords_raw = " ".join(str(k).lower() for k in doc.get("keywords", []))
-        title_tokens = _token_counts(doc.get("title", ""))
-        body_tokens = _token_counts(doc.get("body", ""))
-        keyword_tokens = _token_counts(" ".join(str(k) for k in doc.get("keywords", [])))
-        id_tokens = _token_counts(doc_id)
+        search_terms = doc.get("search_terms")
+        if search_terms:
+            search_raw = " ".join(str(k).lower() for k in search_terms)
+            search_tokens = _token_counts(" ".join(str(k) for k in search_terms))
+        else:
+            search_raw = " ".join(
+                [
+                    str(doc.get("title", "")).lower(),
+                    str(doc.get("body", "")).lower(),
+                    " ".join(str(k).lower() for k in doc.get("keywords", [])),
+                ]
+            )
+            search_tokens = _token_counts(search_raw)
         score = 0
         if query_text:
-            if query_text in str(doc_id).lower():
+            if query_text == str(doc_id).lower():
                 score += 12
-            if query_text in title_raw:
+            if query_text in search_raw:
                 score += 10
-            if query_text in keywords_raw:
-                score += 8
-            if query_text in body_raw:
-                score += 6
         for tok in toks:
-            if tok in id_tokens:
-                score += 8
-            if tok in title_tokens:
-                score += 6
-            if tok in keyword_tokens:
-                score += 5
-            score += min(4, body_tokens.get(tok, 0))
+            score += min(8, 4 * search_tokens.get(tok, 0))
         if score:
             hits.append((score, str(doc.get("date", "")), doc_id))
     hits.sort(key=lambda item: (-item[0], item[1], item[2]))
@@ -147,6 +143,8 @@ def validate(rows: list) -> None:
         route_terms = state.get("_route_terms", {})
         policy_ref = str(route_terms.get("policy_id") or "")
         ticket_ref = str(route_terms.get("ticket_id") or "")
+        code_ref = str(route_terms.get("internal_code") or full_answer["internal_code"])
+        vendor_ref = str(route_terms.get("vendor_alias") or "")
         if not policy_ref or not ticket_ref:
             failures.append((ex.example_id, "missing policy/ticket route terms"))
             continue
@@ -168,21 +166,31 @@ def validate(rows: list) -> None:
         checks = [
             (evidence[0], full_answer["project"]),
             (evidence[1], full_answer["internal_code"]),
-            (evidence[2], f"{full_answer['internal_code']} {full_answer['blocker']}"),
+            (evidence[2], ticket_ref),
             (evidence[3], policy_ref),
-            (evidence[4], f"{ticket_ref} {policy_ref}"),
+            (evidence[4], f"{vendor_ref} {ticket_ref}"),
         ]
+        chain_checks = [
+            (evidence[0], full_answer["project"], 2, "identity from project"),
+            (evidence[1], code_ref, 2, "owner from internal code"),
+            (evidence[2], ticket_ref, 2, "blocker from ticket"),
+            (evidence[3], policy_ref, 2, "policy from policy id"),
+            (evidence[4], f"{vendor_ref} {ticket_ref}", 3, "final memo from vendor+ticket"),
+        ]
+        for gold, query, rank_limit, label in chain_checks:
+            hits = _search(docs, query, max(6, rank_limit))
+            if gold not in hits[:rank_limit]:
+                failures.append(
+                    (ex.example_id, "chain route weak", label, gold, query, hits[:rank_limit])
+                )
+                break
         if state.get("_difficulty", 0) >= 2 and route_terms:
-            code = str(route_terms.get("internal_code") or full_answer["internal_code"])
-            ticket = ticket_ref
-            policy = policy_ref
             route_checks = [
-                (evidence[1], code),
-                (evidence[2], code),
-                (evidence[2], ticket),
-                (evidence[4], ticket),
-                (evidence[3], policy),
-                (evidence[4], policy),
+                (evidence[1], code_ref),
+                (evidence[2], ticket_ref),
+                (evidence[4], ticket_ref),
+                (evidence[3], policy_ref),
+                (evidence[4], policy_ref),
             ]
             for gold, query in route_checks:
                 if gold not in _search(docs, query, 6):

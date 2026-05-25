@@ -71,18 +71,19 @@ In standard mode this value caps rendered REPL output, not the model-owned
 hard because `read_doc(...)` output is clipped even though full conversation
 history is available.
 
-Current calibrated `corpus_trail` recipe, as of 2026-05-20:
+Current calibrated `corpus_trail` recipe, as of 2026-05-25:
 
 - train/eval files: `my_data/train_corpus_trail.jsonl` and
   `my_data/eval_corpus_trail.jsonl`
-- standalone corpus mix: d0 10%, d1 25%, d2 45%, d3 15%, d4 5%
-- d0 is a deliberately easy ordered-evidence-list scaffold with a minimal
-  distractor layer and cap 2200. It should still require reading source docs;
-  the initial project search should reveal only the identity source.
-- d1 is the bridge tier: one stale/distractor layer, exact JSON object
-  `project, internal_code, evidence`, and cap 1500. It should train routing
-  through ticket/policy/final-memo searches without requiring scalar decision
-  extraction yet.
+- standalone corpus mix: d0 20%, d1 35%, d2 30%, d3 12%, d4 3%
+- d0 is the accessible read-to-next-key evidence trail: exact answer is only
+  the ordered five-document evidence list, cap 2500, one harmless distractor,
+  short structured docs, and explicit source-text cues that expose the next
+  search key but not the next document id.
+- d1 is the bridge tier: exact JSON object `project, internal_code, evidence`,
+  cap 2000, structured docs, stale owner/ticket distractors, and the same
+  read-to-next-key route through identity -> handoff -> ticket -> policy ->
+  final memo.
 - d2 is the first real corpus-brief tier: neutral doc ids/titles, answer schema
   `project, internal_code, owner, deadline, decision, evidence`, and cap 1650.
 - d3/d4 use the full risk brief schema with blocker included and harder neutral
@@ -92,6 +93,10 @@ Current calibrated `corpus_trail` recipe, as of 2026-05-20:
   fields, source roles, or evidence chains. Generic task words such as
   `internal`, `code`, `risk`, `memo`, `handoff`, `policy`, and `ticket` should
   not retrieve the evidence chain by themselves.
+- New corpus data uses hidden per-document `search_terms`; `search_docs(...)`
+  should search those terms, not rendered titles/body/keywords. Exact full
+  document-id lookup may work, but partial doc-id token matches should not,
+  because natural word ids otherwise collide with ticket/policy/code words.
 - final risk memos must not include explicit evidence-order or evidence
   cross-reference blocks; the model should discover the chain by reading the
   relevant source documents.
@@ -129,7 +134,7 @@ internal code in "not this project" prose. That makes broad project searches
 retrieve unrelated docs for the wrong reason and causes failures that are about
 retrieval noise rather than context management.
 
-Current default training recipe, as of 2026-05-20:
+Current default training recipe, as of 2026-05-25:
 
 - default files: `my_data/train_context_mix.jsonl` and
   `my_data/eval_context_mix.jsonl`
@@ -138,7 +143,7 @@ Current default training recipe, as of 2026-05-20:
 - train/eval sizes: 8000 / 800 rows
 - family mix: 60% `adaptive_cursor`, 40% `corpus_trail`
 - adaptive-cursor difficulty mix: d0 12%, d1 23%, d2 35%, d3 22%, d4 8%
-- corpus-trail difficulty mix: d0 12%, d1 30%, d2 40%, d3 14%, d4 4%
+- corpus-trail difficulty mix: d0 20%, d1 35%, d2 30%, d3 12%, d4 3%
 - keep `max_turns=15` and `context_rewrite=True` defaults
 - this is the from-scratch recipe. Adaptive cursor is the on-ramp and dominant
   early signal, while corpus trail introduces realistic search/synthesis once

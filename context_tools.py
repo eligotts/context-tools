@@ -460,31 +460,30 @@ def search_docs(query, limit=6):
     limit = max(1, min(10, limit))
     hits = []
     for source_id, doc in _corpus_trail_docs.items():
-        title_raw = str(doc.get('title', '')).lower()
-        body_raw = str(doc.get('body', '')).lower()
-        keywords_raw = " ".join(str(k).lower() for k in doc.get('keywords', []))
-        title_tokens = _corpus_trail_token_counts(doc.get('title', ''))
-        body_tokens = _corpus_trail_token_counts(doc.get('body', ''))
-        keyword_tokens = _corpus_trail_token_counts(" ".join(str(k) for k in doc.get('keywords', [])))
-        id_tokens = _corpus_trail_token_counts(source_id)
+        search_terms = doc.get('search_terms')
+        if search_terms:
+            search_raw = " ".join(str(k).lower() for k in search_terms)
+            search_tokens = _corpus_trail_token_counts(" ".join(str(k) for k in search_terms))
+        else:
+            # Backward compatibility for older generated data. New
+            # corpus_trail data sets always provide hidden search_terms so
+            # document titles/body text are not an unintended retrieval oracle.
+            search_raw = " ".join(
+                [
+                    str(doc.get('title', '')).lower(),
+                    str(doc.get('body', '')).lower(),
+                    " ".join(str(k).lower() for k in doc.get('keywords', [])),
+                ]
+            )
+            search_tokens = _corpus_trail_token_counts(search_raw)
         score = 0
         if query_text:
-            if query_text in str(source_id).lower():
+            if query_text == str(source_id).lower():
                 score += 12
-            if query_text in title_raw:
+            if query_text in search_raw:
                 score += 10
-            if query_text in keywords_raw:
-                score += 8
-            if query_text in body_raw:
-                score += 6
         for tok in tokens:
-            if tok in id_tokens:
-                score += 8
-            if tok in title_tokens:
-                score += 6
-            if tok in keyword_tokens:
-                score += 5
-            score += min(4, body_tokens.get(tok, 0))
+            score += min(8, 4 * search_tokens.get(tok, 0))
         if score:
             hits.append((score, str(doc.get('date', '')), source_id, doc))
     hits.sort(key=lambda item: (-item[0], item[1], item[2]))

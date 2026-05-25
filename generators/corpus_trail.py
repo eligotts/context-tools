@@ -172,8 +172,8 @@ class CorpusTrailWorld(WorldGenerator):
         params = {
             0: {
                 "distractors": 1,
-                "cap": 2200,
-                "doc_chars": 280,
+                "cap": 2500,
+                "doc_chars": 360,
                 "lag": 2,
                 "briefing_noise": 0,
                 "snippet_chars": 220,
@@ -181,11 +181,12 @@ class CorpusTrailWorld(WorldGenerator):
                 "risk_public": False,
                 "stale_docs": False,
                 "cross_refs": False,
+                "chain_cues": True,
             },
             1: {
-                "distractors": 1,
-                "cap": 1500,
-                "doc_chars": 380,
+                "distractors": 2,
+                "cap": 2000,
+                "doc_chars": 500,
                 "lag": 2,
                 "briefing_noise": 0,
                 "snippet_chars": 220,
@@ -193,6 +194,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
+                "chain_cues": True,
             },
             2: {
                 "distractors": 3,
@@ -205,6 +207,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
+                "chain_cues": False,
             },
             3: {
                 "distractors": 10,
@@ -217,6 +220,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
+                "chain_cues": False,
             },
             4: {
                 "distractors": 22,
@@ -229,6 +233,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
+                "chain_cues": False,
             },
         }[difficulty]
 
@@ -268,7 +273,16 @@ class CorpusTrailWorld(WorldGenerator):
 
         docs: dict[str, dict[str, Any]] = {}
 
-        def add_doc(prefix: str, title: str, date: str, body: str, keywords: list[str], *, target: int | None = None) -> str:
+        def add_doc(
+            prefix: str,
+            title: str,
+            date: str,
+            body: str,
+            keywords: list[str],
+            *,
+            target: int | None = None,
+            search_terms: list[str] | None = None,
+        ) -> str:
             doc_id = _doc_id(used_doc_ids, id_bank)
             docs[doc_id] = {
                 "id": doc_id,
@@ -276,6 +290,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "date": date,
                 "body": _pad(body, rng, target or params["doc_chars"]),
                 "keywords": keywords,
+                "search_terms": search_terms or list(keywords),
             }
             return doc_id
 
@@ -299,19 +314,32 @@ class CorpusTrailWorld(WorldGenerator):
             }[role]
 
         def owner_narrative() -> str:
+            ticket_line = (
+                f" The active ticket is {ticket_id}; search that ticket to inspect "
+                "the active blocker."
+                if params["chain_cues"]
+                else ""
+            )
             if neutral_surface:
                 return (
                     f"Current launch handoff for {internal_code}: owner is {owner}. "
                     f"The active deadline is {deadline}. This supersedes older "
                     f"ownership notes for this launch stream and applies to the "
-                    f"vendor alias {vendor_alias}."
+                    f"vendor alias {vendor_alias}.{ticket_line}"
                 )
             return (
                 f"Current launch handoff for {internal_code}: owner is {owner}. "
                 f"The active deadline is {deadline}. This supersedes older "
                 f"ownership notes for {project} and applies to the vendor alias "
-                f"{vendor_alias}."
+                f"{vendor_alias}.{ticket_line}"
             )
+
+        identity_tail = (
+            f" Search the internal code {internal_code} to locate the current "
+            "handoff source."
+            if params["chain_cues"]
+            else ""
+        )
 
         identity_id = add_doc(
             "memo",
@@ -327,9 +355,10 @@ class CorpusTrailWorld(WorldGenerator):
                 f"tracked internally as {internal_code}. Vendor-channel notes "
                 f"use the alias {vendor_alias}. Preserve this mapping because "
                 f"later launch, ticket, and risk documents may use only one of "
-                f"the three names.",
+                f"the three names.{identity_tail}",
             ),
             [project, internal_code, vendor_alias, "alias", "registry"],
+            search_terms=[project],
         )
 
         stale_doc_ids: list[str] = []
@@ -346,6 +375,7 @@ class CorpusTrailWorld(WorldGenerator):
                 ),
                 [internal_code, old_owner, old_deadline, "historical"],
                 target=params["doc_chars"] - 80,
+                search_terms=[internal_code, old_owner],
             )
             stale_doc_ids.append(stale_owner_id)
 
@@ -367,6 +397,7 @@ class CorpusTrailWorld(WorldGenerator):
                 if neutral_surface
                 else [internal_code, project, owner, deadline, vendor_alias, "handoff"]
             ),
+            search_terms=[internal_code, internal_code, f"{internal_code} {vendor_alias}"],
         )
 
         if params["stale_docs"]:
@@ -382,9 +413,15 @@ class CorpusTrailWorld(WorldGenerator):
                 ),
                 [ticket_id, vendor_alias, old_decision, "historical"],
                 target=params["doc_chars"] - 60,
+                search_terms=[ticket_id, vendor_alias],
             )
             stale_doc_ids.append(stale_ticket_id)
 
+        blocker_tail = (
+            f" Search policy standard {policy_id} to apply the decision rule."
+            if params["chain_cues"]
+            else ""
+        )
         blocker_id = add_doc(
             "ticket",
             title("blocker"),
@@ -400,11 +437,22 @@ class CorpusTrailWorld(WorldGenerator):
                 f"Open evidence ticket {ticket_id} for {internal_code}: the "
                 f"blocking issue is {blocker}. The ticket is filed under vendor "
                 f"alias {vendor_alias} and says classification must follow "
-                f"{policy_id} rather than the historical ticket status.",
+                f"{policy_id} rather than the historical ticket status.{blocker_tail}",
             ),
             [ticket_id, internal_code, vendor_alias, blocker, policy_id],
+            search_terms=(
+                [ticket_id, ticket_id, ticket_id, vendor_alias]
+                if params["chain_cues"]
+                else [ticket_id, ticket_id, ticket_id, vendor_alias, policy_id]
+            ),
         )
 
+        policy_tail = (
+            f" The final board packet is filed under vendor alias {vendor_alias} "
+            f"and ticket {ticket_id}."
+            if params["chain_cues"]
+            else ""
+        )
         policy_id_doc = add_doc(
             "policy",
             title("policy"),
@@ -420,9 +468,10 @@ class CorpusTrailWorld(WorldGenerator):
                 f"conflicts with a later risk memo, the later risk memo is the "
                 f"decision source. Keep the internal code and vendor alias "
                 f"attached to the decision so similarly named projects are not "
-                f"merged.",
+                f"merged.{policy_tail}",
             ),
             [policy_id, blocker, decision, "risk", "decision"],
+            search_terms=[policy_id, policy_id, blocker],
         )
 
         if params["risk_public"]:
@@ -498,12 +547,18 @@ class CorpusTrailWorld(WorldGenerator):
             if params["risk_public"]
             else [vendor_alias, policy_id, ticket_id, decision, "risk", "final"]
         )
+        risk_search_terms = (
+            [f"{vendor_alias} {ticket_id}"]
+            if params["chain_cues"]
+            else [f"{ticket_id} {policy_id}", vendor_alias, ticket_id, policy_id]
+        )
         decision_id = add_doc(
             "risk",
             risk_title,
             _date(20),
             risk_body,
             risk_keywords,
+            search_terms=risk_search_terms,
         )
 
         # Distractors: other projects, stale updates, and near collisions.
@@ -553,6 +608,7 @@ class CorpusTrailWorld(WorldGenerator):
                 body,
                 [other_project, other_code, other_vendor, other_owner, other_decision],
                 target=max(420, params["doc_chars"] - rng.randint(80, 220)),
+                search_terms=[other_project, other_code, other_vendor, other_owner],
             )
 
         # A long initial document that gives useful starting clues but is not a
