@@ -171,14 +171,14 @@ class CorpusTrailWorld(WorldGenerator):
         difficulty = max(0, min(4, difficulty if difficulty is not None else 2))
         params = {
             0: {
-                "distractors": 0,
+                "distractors": 1,
                 "cap": 2200,
                 "doc_chars": 280,
                 "lag": 2,
                 "briefing_noise": 0,
                 "snippet_chars": 220,
                 "near_miss_rate": 0.0,
-                "risk_public": True,
+                "risk_public": False,
                 "stale_docs": False,
                 "cross_refs": False,
             },
@@ -190,7 +190,7 @@ class CorpusTrailWorld(WorldGenerator):
                 "briefing_noise": 0,
                 "snippet_chars": 220,
                 "near_miss_rate": 0.05,
-                "risk_public": True,
+                "risk_public": False,
                 "stale_docs": True,
                 "cross_refs": False,
             },
@@ -258,7 +258,7 @@ class CorpusTrailWorld(WorldGenerator):
         policy_id = id_bank.fresh(words=2)
         ticket_id = id_bank.fresh(words=2)
         structured_sources = difficulty <= 2
-        neutral_surface = difficulty >= 2
+        neutral_surface = True
 
         def source_body(fields: list[tuple[str, str]], narrative: str) -> str:
             if not structured_sources:

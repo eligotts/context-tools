@@ -406,9 +406,17 @@ _corpus_trail_snippet_chars = max(60, min(220, _corpus_trail_snippet_chars))
 
 def _corpus_trail_tokens(text):
     import re as _re
+    _stop = {
+        "the", "and", "for", "with", "from", "project", "internal", "code",
+        "owner", "deadline", "handoff", "risk", "memo", "brief", "current",
+        "launch", "decision", "evidence", "source", "sources", "document",
+        "documents", "doc", "docs", "ticket", "policy", "blocker",
+        "identity", "ordered", "order", "list", "final", "alias", "vendor",
+        "date",
+    }
     return [
         t for t in _re.findall(r"[a-z0-9]+", str(text).lower())
-        if len(t) >= 2 and t not in {"the", "and", "for", "with", "from"}
+        if len(t) >= 2 and t not in _stop
     ]
 
 def _corpus_trail_token_counts(text):
@@ -429,42 +437,18 @@ def _corpus_trail_render(doc):
 
 def _corpus_trail_snippet(doc, tokens):
     source_id = str(doc.get('id', ''))
-    title = str(doc.get('title', ''))
-    body = str(doc.get('body', ''))
-    keywords = " ".join(str(k) for k in doc.get('keywords', []))
-    haystacks = (
-        ('id', _corpus_trail_token_counts(source_id)),
-        ('title', _corpus_trail_token_counts(title)),
-        ('metadata', _corpus_trail_token_counts(keywords)),
-        ('body', _corpus_trail_token_counts(body)),
-    )
-    matched_in = []
-    for label, token_counts in haystacks:
-        if any(tok in token_counts for tok in tokens):
-            matched_in.append(label)
-    title_lower = title.lower()
-    if 'alias' in title_lower:
-        kind = 'alias registry'
-    elif 'handoff' in title_lower:
-        kind = 'handoff note'
-    elif 'policy' in title_lower:
-        kind = 'policy note'
-    elif 'risk' in title_lower:
-        kind = 'risk memo'
-    elif 'ticket' in title_lower:
-        kind = 'ticket note'
-    else:
-        kind = 'corpus document'
-    where = ', '.join(dict.fromkeys(matched_in)) if matched_in else 'corpus'
     return (
-        f"Matched query terms in {where}; source kind: {kind}. "
-        f"Open with read_doc('{source_id}') for source text."
+        "Locator-only hit. The search index matched this source, but this "
+        f"snippet is not source text; open with read_doc('{source_id}')."
     )
 
 def search_docs(query, limit=6):
-    \"\"\"Search corpus documents. Returns up to `limit` dicts with id, title,
-    date, and a short snippet. Snippets are not source-of-record; call
-    read_doc(source_id) for documents you rely on.\"\"\"
+    \"\"\"Search corpus documents.
+
+    Returns up to `limit` locator dicts. Results intentionally do not expose
+    titles, source roles, dates, or answer-bearing snippets; call
+    read_doc(source_id) for documents you rely on.
+    \"\"\"
     query_text = str(query).lower().strip()
     tokens = _corpus_trail_tokens(query)
     if not tokens:
@@ -507,8 +491,7 @@ def search_docs(query, limit=6):
     return [
         {
             'id': source_id,
-            'title': doc.get('title', ''),
-            'date': doc.get('date', ''),
+            'source_id': source_id,
             'snippet': _corpus_trail_snippet(doc, tokens),
         }
         for _, _, source_id, doc in hits[:limit]
@@ -612,7 +595,7 @@ _TOOL_SIGNATURES: dict[str, list[str]] = {
         "- move(target: str) -> dict — move to a neighbor of the current node; raises ValueError if `target` isn't adjacent. Returns the same shape as look() for the new position.",
     ],
     "corpus_trail": [
-        "- search_docs(query: str, limit: int = 6) -> list[dict] — search noisy corpus documents and return matching ids, titles, dates, and short snippets.",
+        "- search_docs(query: str, limit: int = 6) -> list[dict] — search noisy corpus documents and return locator-only hits with source ids plus non-evidentiary snippets.",
         "- read_doc(source_id: str) -> str — return the full text of one corpus document.",
     ],
     "adaptive_cursor": [
@@ -735,8 +718,9 @@ Submit the goal node's secret via ``submit_answer("<secret>")``.
 
 You are doing a small research synthesis over a noisy document corpus.
 ``briefing_note`` is a long pre-seeded intake note. It is useful for starting
-clues, but it is not a citable final evidence source. Search results are only
-snippets; use ``read_doc(source_id)`` for any source you rely on.
+clues, but it is not a citable final evidence source. Search results are
+locator-only and omit titles, dates, source roles, and source text; use
+``read_doc(source_id)`` for any source you rely on.
 
 Pre-seeded kernel variables (free; do NOT cost a tool call):
   briefing_note  — long intake note with initial aliases and routing hints

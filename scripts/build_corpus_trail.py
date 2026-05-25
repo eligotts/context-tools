@@ -69,9 +69,17 @@ def build(n: int, seed: int) -> list:
 
 
 def _tokens(text: str) -> list[str]:
+    stop = {
+        "the", "and", "for", "with", "from", "project", "internal", "code",
+        "owner", "deadline", "handoff", "risk", "memo", "brief", "current",
+        "launch", "decision", "evidence", "source", "sources", "document",
+        "documents", "doc", "docs", "ticket", "policy", "blocker",
+        "identity", "ordered", "order", "list", "final", "alias", "vendor",
+        "date",
+    }
     return [
         t for t in re.findall(r"[a-z0-9]+", str(text).lower())
-        if len(t) >= 2 and t not in {"the", "and", "for", "with", "from"}
+        if len(t) >= 2 and t not in stop
     ]
 
 
@@ -201,19 +209,26 @@ def validate(rows: list) -> None:
             if gold not in _search(docs, query, 6):
                 failures.append((ex.example_id, "unreachable", gold, query))
                 break
-        if state.get("_difficulty", 0) >= 2:
-            initial_hits = _search(docs, full_answer["project"], 6)
+        broad_queries = [
+            full_answer["project"],
+            f"{full_answer['project']} internal code",
+            f"{full_answer['project']} handoff risk memo",
+        ]
+        for broad_query in broad_queries:
+            initial_hits = _search(docs, broad_query, 6)
             initial_gold_hits = [doc_id for doc_id in initial_hits if doc_id in evidence]
-            if evidence[0] not in initial_hits:
+            if broad_query == full_answer["project"] and evidence[0] not in initial_hits:
                 failures.append((ex.example_id, "initial project search misses identity"))
             if len(initial_gold_hits) > 2:
                 failures.append(
                     (
                         ex.example_id,
-                        "initial project search reveals too much gold evidence",
+                        "broad search reveals too much gold evidence",
+                        broad_query,
                         initial_gold_hits,
                     )
                 )
+                break
         min_margin = 1.2 if state.get("_difficulty", 0) == 0 else 2.0
         if state.get("_append_only_margin", 0) < min_margin:
             failures.append((ex.example_id, "weak append-only margin"))

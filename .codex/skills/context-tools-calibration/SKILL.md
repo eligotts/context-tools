@@ -76,18 +76,22 @@ Current calibrated `corpus_trail` recipe, as of 2026-05-20:
 - train/eval files: `my_data/train_corpus_trail.jsonl` and
   `my_data/eval_corpus_trail.jsonl`
 - standalone corpus mix: d0 10%, d1 25%, d2 45%, d3 15%, d4 5%
-- d0 is a deliberately easy ordered-evidence-list scaffold with no distractors,
-  public doc ids/titles, and cap 2200. It is allowed to be mostly role-driven.
-- d1 is the bridge tier: one stale/distractor layer, public doc ids/titles,
-  exact JSON object `project, internal_code, evidence`, and cap 1500. It should
-  train routing through ticket/policy searches without requiring scalar decision
+- d0 is a deliberately easy ordered-evidence-list scaffold with a minimal
+  distractor layer and cap 2200. It should still require reading source docs;
+  the initial project search should reveal only the identity source.
+- d1 is the bridge tier: one stale/distractor layer, exact JSON object
+  `project, internal_code, evidence`, and cap 1500. It should train routing
+  through ticket/policy/final-memo searches without requiring scalar decision
   extraction yet.
 - d2 is the first real corpus-brief tier: neutral doc ids/titles, answer schema
   `project, internal_code, owner, deadline, decision, evidence`, and cap 1650.
 - d3/d4 use the full risk brief schema with blocker included and harder neutral
   distractors; caps 1750/1850.
-- `search_docs(...)` snippets are locator-only. They should identify candidate
-  documents but not expose answer-bearing source fields or evidence chains.
+- `search_docs(...)` results are locator-only. They should identify candidate
+  source ids but must not expose titles, dates, source kinds, answer-bearing
+  fields, source roles, or evidence chains. Generic task words such as
+  `internal`, `code`, `risk`, `memo`, `handoff`, `policy`, and `ticket` should
+  not retrieve the evidence chain by themselves.
 - final risk memos must not include explicit evidence-order or evidence
   cross-reference blocks; the model should discover the chain by reading the
   relevant source documents.
