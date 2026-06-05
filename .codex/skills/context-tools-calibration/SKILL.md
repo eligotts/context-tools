@@ -134,24 +134,25 @@ internal code in "not this project" prose. That makes broad project searches
 retrieve unrelated docs for the wrong reason and causes failures that are about
 retrieval noise rather than context management.
 
-Current default training recipe, as of 2026-05-25:
+Current default training recipe, as of 2026-05-27:
 
 - default files: `my_data/train_context_mix.jsonl` and
   `my_data/eval_context_mix.jsonl`
 - `load_environment()` defaults point at those mixed files, so training can run
   without dataset env args
 - train/eval sizes: 8000 / 800 rows
-- family mix: 60% `adaptive_cursor`, 40% `corpus_trail`
-- adaptive-cursor difficulty mix: d0 12%, d1 23%, d2 35%, d3 22%, d4 8%
-- corpus-trail difficulty mix: d0 20%, d1 35%, d2 30%, d3 12%, d4 3%
+- family mix: 55% `adaptive_cursor`, 45% `corpus_trail`
+- adaptive-cursor difficulty mix: d2 8%, d3 42%, d4 50%
+- corpus-trail difficulty mix: d2 10%, d3 40%, d4 50%
 - keep `max_turns=15` and `context_rewrite=True` defaults
-- this is the from-scratch recipe. Adaptive cursor is the on-ramp and dominant
-  early signal, while corpus trail introduces realistic search/synthesis once
-  zero-gradient filtering starts admitting solvable document tasks.
-- corpus d0/d1 are intentionally more prominent than in the earlier recipe
-  because the deployed checkpoint had zero reward on d1/d2 without a clearer
-  bridge. d0/d1 should provide early variance; d2+ should provide the real
-  pressure once filtering admits it.
+- this is a frontier continuation recipe for checkpoints that have mostly
+  saturated d0-d2. Adaptive d4 is still bimodal rather than saturated, and
+  corpus d4 still has meaningful pass/fail variance, so the default mix now
+  concentrates on d3/d4 with a small d2 stabilizer.
+- if starting a model from scratch, consider temporarily restoring the older
+  on-ramp-heavy mix or using the standalone domain files. The current default
+  is meant to spend training capacity on the hard examples that remained after
+  the `b902wayi182m7gvi8fqiettu` plateau around steps 486-505.
 
 Then run the trained checkpoint with `context_rewrite=true`:
 

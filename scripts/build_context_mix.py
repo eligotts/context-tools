@@ -24,23 +24,20 @@ OUT_DIR = HERE / "my_data"
 TRAIN_SIZE = 8000
 EVAL_SIZE = 800
 
-# From-scratch curriculum: adaptive cursor is the on-ramp and dominant signal,
-# while corpus trail introduces realistic search/synthesis pressure once the
-# model starts earning variance under zero-gradient filtering.
-FAMILY_MIX = [("adaptive_cursor", 0.60), ("corpus_trail", 0.40)]
+# Frontier continuation curriculum. The current trained checkpoints have mostly
+# saturated d0-d2, while adaptive d4 and corpus d4 still produce useful
+# variance. Keep both domains in the default mix, but spend almost all samples
+# on d3/d4 and leave a small d2 stabilizer.
+FAMILY_MIX = [("adaptive_cursor", 0.55), ("corpus_trail", 0.45)]
 ADAPTIVE_CURSOR_DIFFICULTY_MIX = [
-    (0, 0.12),
-    (1, 0.23),
-    (2, 0.35),
-    (3, 0.22),
-    (4, 0.08),
+    (2, 0.08),
+    (3, 0.42),
+    (4, 0.50),
 ]
 CORPUS_TRAIL_DIFFICULTY_MIX = [
-    (0, 0.20),
-    (1, 0.35),
-    (2, 0.30),
-    (3, 0.12),
-    (4, 0.03),
+    (2, 0.10),
+    (3, 0.40),
+    (4, 0.50),
 ]
 
 
@@ -179,7 +176,7 @@ def main() -> None:
             {
                 "train": str(train_path.relative_to(HERE)),
                 "eval": str(eval_path.relative_to(HERE)),
-                "note": "default 60% adaptive_cursor / 40% corpus_trail from-scratch context-management mix",
+                "note": "default 55% adaptive_cursor / 45% corpus_trail frontier continuation mix",
             },
             indent=2,
         )

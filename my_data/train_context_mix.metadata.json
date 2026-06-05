@@ -1,67 +1,52 @@
 {
   "total_examples": 8000,
   "world_distribution": {
-    "adaptive_cursor": 4800,
-    "corpus_trail": 3200
+    "adaptive_cursor": 4400,
+    "corpus_trail": 3600
   },
   "optimal_turns_distribution": {
-    "4": 576,
-    "5": 1104,
-    "6": 1680,
-    "7": 1056,
-    "8": 640,
-    "9": 1504,
-    "10": 960,
-    "11": 384,
-    "12": 96
+    "6": 352,
+    "7": 1848,
+    "9": 2200,
+    "10": 360,
+    "11": 1440,
+    "12": 1800
   },
   "difficulty_distribution": {
-    "0": 1216,
-    "1": 2224,
-    "2": 2640,
-    "3": 1440,
-    "4": 480
+    "2": 712,
+    "3": 3288,
+    "4": 4000
   },
   "query_template_distribution": {
-    "cursor_checkpoint_audit": 4800,
-    "compact_risk_brief": 1120,
-    "handoff_risk_brief": 960,
-    "evidence_trail": 640,
-    "project_risk_brief": 480
+    "cursor_checkpoint_audit": 4400,
+    "project_risk_brief": 3240,
+    "handoff_risk_brief": 360
   },
   "mix": {
     "families": {
-      "adaptive_cursor": 0.6,
-      "corpus_trail": 0.4
+      "adaptive_cursor": 0.55,
+      "corpus_trail": 0.45
     },
     "corpus_trail_difficulty_mix": {
-      "0": 0.2,
-      "1": 0.35,
-      "2": 0.3,
-      "3": 0.12,
-      "4": 0.03
+      "2": 0.1,
+      "3": 0.4,
+      "4": 0.5
     },
     "adaptive_cursor_difficulty_mix": {
-      "0": 0.12,
-      "1": 0.23,
-      "2": 0.35,
-      "3": 0.22,
-      "4": 0.08
+      "2": 0.08,
+      "3": 0.42,
+      "4": 0.5
     },
     "world_difficulty_distribution": {
       "adaptive_cursor": {
-        "0": 576,
-        "1": 1104,
-        "2": 1680,
-        "3": 1056,
-        "4": 384
+        "2": 352,
+        "3": 1848,
+        "4": 2200
       },
       "corpus_trail": {
-        "0": 640,
-        "1": 1120,
-        "2": 960,
-        "3": 384,
-        "4": 96
+        "2": 360,
+        "3": 1440,
+        "4": 1800
       }
     }
   }
